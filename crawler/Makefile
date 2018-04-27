@@ -4,8 +4,10 @@
 
 CS50PATH = ../libcs50/
 CS50HEADERS = $(CS50PATH)bag.h $(CS50PATH)counters.h $(CS50PATH)file.h $(CS50PATH)hashtable.h $(CS50PATH)jhash.h $(CS50PATH)set.h $(CS50PATH)webpage.h $(CS50PATH)memory.h
+CS50FILES = $(CS50PATH)bag.c $(CS50PATH)counters.c $(CS50PATH)file.c $(CS50PATH)hashtable.c $(CS50PATH)jhash.c $(CS50PATH)set.c $(CS50PATH)webpage.c $(CS50PATH)memory.c
 COMMONPATH = ../common/
 COMMONHEADERS = $(COMMONPATH)pagedir.h $(COMMONPATH)word.h
+COMMONFILES = $(COMMONPATH)pagedir.c $(COMMONPATH)word.c
 PROG = crawler
 OBJS = crawler.o
 LIBS = -lcurl -lcs50 -lcommon
@@ -20,10 +22,10 @@ $(PROG): $(OBJS)
 
 crawler.o: $(CS50PATH)libcs50.a $(COMMONPATH)libcommon.a
 
-$(CS50PATH)libcs50.a: $(CS50HEADERS)
+$(CS50PATH)libcs50.a: $(CS50FILES) $(CS50HEADERS)
 	$(MAKE) -C $(CS50PATH)
 
-$(COMMONPATH)libcommon.a: $(COMMONHEADERS)
+$(COMMONPATH)libcommon.a: $(COMMONFILES) $(COMMONHEADERS)
 	$(MAKE) -C $(COMMONPATH)
 
 

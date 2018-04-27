@@ -37,10 +37,13 @@
 #include "pagedir.h"
 
 void cleanup(void); // free all allocated memory
+inline static void logr(const char *word, const int depth, const char *url)
+{
+	printf("%2d %*s%9s: %s\n", depth, depth, "", word, url);
+}
 
 bag_t *toVisit;					// stores webpages we have yet to explore
 hashtable_t *visited;		// stores URLs we have visited
-webpage_t *currpage;		// current page being explored
 
 int main(const int argc, char *argv[]) {
 	int id = 1;						// id of the next webpage to be explored.
@@ -48,6 +51,7 @@ int main(const int argc, char *argv[]) {
 	int pos = 0;					// current position in the html buffer
 	char *dummy = " ";		// dummy string to be the value of URLs in the hashtable
 	char *resultURL; 			// URL from webpage_getNextURL
+	webpage_t *currpage;	// current page being explored
 	webpage_t *URLpage;		// the page created for a URL scanned from currpage
 
 	
@@ -76,7 +80,7 @@ int main(const int argc, char *argv[]) {
 	}
 
 	// try to initialize the normalized seedURL as a webpage_t based on input
-	webpage_t *currpage = assertp(webpage_new(argv[1], 0, NULL), "error initializing seedURL as a webpage_t\n");
+	currpage = assertp(webpage_new(argv[1], 0, NULL), "error initializing seedURL as a webpage_t\n");
 
 	// test writing to pageDirectory by creating .crawler there
 	// (10 = /.crawler(9) + null-terminator(1))
@@ -116,6 +120,8 @@ int main(const int argc, char *argv[]) {
 			continue;
 		}
 		
+		logr("Fetched", webpage_getDepth(currpage), webpage_getURL(currpage));
+
 		// fetch success, write it to the specified path with current id.
 		// Increment id and exit on failure
 		if (!pagedir(currpage, argv[2], id++)) {
@@ -123,7 +129,9 @@ int main(const int argc, char *argv[]) {
 			webpage_delete(currpage);
 			cleanup();
 			exit(3);
-		}
+		}	
+
+		logr("Saved", webpage_getDepth(currpage), webpage_getURL(currpage));
 
 		// explore the webpage if its depth is < maxDepth
 		if (webpage_getDepth(currpage) < md) {
@@ -132,17 +140,29 @@ int main(const int argc, char *argv[]) {
 			while ((pos = webpage_getNextURL(currpage, pos, &resultURL)) > 0) {
 				// only proceed with URL that's valid and internal
 				// (IsInternalURL() normalizes the URL as a side effect)
+				logr("Found", webpage_getDepth(currpage), resultURL);
+
 				if (IsInternalURL(resultURL)) {
 					// if it's never visited before, insert it into the bag
 					// (it's marked as visited in the process)
 					if (hashtable_insert(visited, resultURL, dummy)) {
 						URLpage = webpage_new(resultURL, webpage_getDepth(currpage) + 1, NULL);
 						bag_insert(toVisit, URLpage);
+						logr("Added", webpage_getDepth(currpage), resultURL);
+					}
+					else {
+						logr("IgnDupl", webpage_getDepth(currpage), resultURL);
 					}
 				}
+				else {
+					logr("IgnExtrn", webpage_getDepth(currpage), resultURL);
+				}
+
 				// free the memory allocated by webpage_getNextURL()
 				free(resultURL);
 			}
+			// reset pos
+			pos = 0;
 		}
 
 		// free the current webpage - it's no longer useful

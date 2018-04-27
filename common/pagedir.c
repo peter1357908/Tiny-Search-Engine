@@ -23,7 +23,7 @@ bool pagedir(webpage_t *page, char *path, int id) {
 	FILE *file;						// the file to write onto
 	
 	// convert the integers into its string form, return false on failure
-	if (sprintf(idString, "%d", id) < 0 || sprintf(depthString, "%d", id) < 0) {
+	if (sprintf(idString, "%d", id) < 0 || sprintf(depthString, "%d", webpage_getDepth(page)) < 0) {
 		return false;
 	}
 	
@@ -48,13 +48,13 @@ bool pagedir(webpage_t *page, char *path, int id) {
 				insertS("\n", file) &&
 				insertS(webpage_getHTML(page), file))
 		{
+			fclose(file);
 			free(pagePath);
 			return true;
 		}
 	}
 	free(pagePath);
-	return false;
-	
+	return false;	
 }
 
 // insert the string into the file: false if something went wrong, true otherwise.
