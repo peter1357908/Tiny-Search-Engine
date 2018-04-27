@@ -29,4 +29,5 @@ sourcelist: Makefile *.md *.c *.h
 
 # clean up after our compilation
 clean:
+	rm $(LIB)
 	rm -f $(LIB) *~ *.o

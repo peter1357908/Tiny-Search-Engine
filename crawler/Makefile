@@ -1,5 +1,11 @@
 # Makefile for 'crawler' module of the TSE project
 #
+# Really, I just want this Makefile to be as quite as possible, so it's in fact
+# checking dependencies in other Makefiles' stead. Can be simplified, but it's
+# definitely faster than asking other Makefiles to do their job every time
+# (then crawler is always recompiled, which loses the point of having a
+# Makefile)
+#
 # Shengsong Gao, April 2018
 
 CS50PATH = ../libcs50/
