@@ -36,8 +36,10 @@
 #include "memory.h"
 #include "pagedir.h"
 
-void cleanup(void); // free all allocated memory
-void *notNull(void *pointer, const char *message);
+void cleanup(void); 																// free all allocated memory
+void *notNull(void *pointer, const char *message);	// optimized assertp()
+void crawler(char *seedURL, char *path, int md); 		// actual crawler
+
 inline static void logr(const char *word, const int depth, const char *url)
 {
 	printf("%2d %*s%9s: %s\n", depth, depth, "", word, url);
@@ -47,15 +49,10 @@ bag_t *toVisit;					// stores webpages we have yet to explore
 hashtable_t *visited;		// stores URLs we have visited
 webpage_t *currpage;		// current page being explored
 
+// parses arguments, initializes other modules, and call crawler()
 int main(const int argc, char *argv[]) {
-	int id = 1;						// id of the next webpage to be explored.
-	int md;								// maxDepth
-	int pos = 0;					// current position in the html buffer
-	char *dummy = " ";		// dummy string to be the value of URLs in the hashtable
-	char *resultURL; 			// URL from webpage_getNextURL
-	webpage_t *URLpage;		// the page created for a URL scanned from currpage
+	int md; // maxDepth
 
-	
 	// parse the command line, validate parameters, initialize other modules
 	if (argc != 4) {
 		fprintf(stderr, "usage: crawler seedURL pageDirectory maxDepth\n");
@@ -79,7 +76,7 @@ int main(const int argc, char *argv[]) {
 		fprintf(stderr, "error normalizing the seedURL\n");
 		exit(4);
 	}
-
+	
 	// try to initialize the normalized seedURL as a webpage_t based on input
 	currpage = notNull(webpage_new(argv[1], 0, NULL), "error initializing seedURL as a webpage_t\n");
 
@@ -98,12 +95,25 @@ int main(const int argc, char *argv[]) {
 	// initialize the hashtable of URLs we've seen so far - each URL as key, and
 	// a dummy character pointer as value (because NULL not allowed as value)
 	visited = notNull(hashtable_new(30), "failed to initialize hashtable visited\n");
+	
+	crawler(argv[1], argv[2], md);
 
+	exit(0);
+}
+
+// do the actual crawlin'! 
+void crawler(char *seedURL, char *path, int md) {
+	int id = 1;						// id of the next webpage to be explored.
+	int pos = 0;					// current position in the html buffer
+	char *dummy = " ";		// dummy string to be the value of URLs in the hashtable
+	char *resultURL; 			// URL from webpage_getNextURL
+	webpage_t *URLpage;		// the page created for a URL scanned from currpage
+	
 	// add it to the bag of webpages to crawl, assuming no error
 	bag_insert(toVisit, currpage);
 
 	// mark the normalized URL as visited, assuming no error
-	hashtable_insert(visited, argv[1], dummy);
+	hashtable_insert(visited, seedURL, dummy);
 	
 	// while there are more webpages to crawl, extract one from the bag.
 	while((currpage = bag_extract(toVisit)) != NULL) {
@@ -124,7 +134,7 @@ int main(const int argc, char *argv[]) {
 
 		// fetch success, write it to the specified path with current id.
 		// Increment id and exit on failure
-		if (!pagedir(currpage, argv[2], id++)) {
+		if (!pagedir(currpage, path, id++)) {
 			fprintf(stderr, "error writing html to file\n");
 			cleanup();
 			exit(3);
@@ -169,7 +179,6 @@ int main(const int argc, char *argv[]) {
 	}
 	
 	cleanup();
-	exit(0);
 }
 
 // free the currpage, the bag, and the hashtable
