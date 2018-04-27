@@ -1,0 +1,161 @@
+/*
+ * crawler.c - for CS50 lab4, and as part of CS50 TSE project
+ *
+ * see the markdown files in the same directory for more information.
+ *
+ * BEWARE: hashtable size is set to be 30... under the current requirements
+ * it's not easy to and I didn't make it adaptive.
+ *
+ * since webpage module uses assertp() already, I'll assume along that any
+ * possible memory "still reachable" resulted from assertp() is fine.
+ *
+ * usage:
+ *
+ * 	crawler seedURL pageDirectory maxDepth 
+ *
+ * exit status:
+ * 	
+ * 	0 - success
+ * 	1 - error during argument parsing (unexpected number of arguments, bad input, etc.)
+ * 	2 - error fetching webpage
+ *	3 - error writing webpage to file
+ *	4 - error normalizing the seedURL
+ *	99 - exited from an assertp() statement - see stderr for more information.
+ *
+ *
+ * Shengsong Gao, April 2018
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include "bag.h"
+#include "hashtable.h"
+#include "webpage.h"
+#include "memory.h"
+#include "pagedir.h"
+
+void cleanup(void); // free all allocated memory
+
+bag_t *toVisit;					// stores webpages we have yet to explore
+hashtable_t *visited;		// stores URLs we have visited
+webpage_t *currpage;		// current page being explored
+
+int main(const int argc, char *argv[]) {
+	int id = 1;						// id of the next webpage to be explored.
+	int md;								// maxDepth
+	int pos = 0;					// current position in the html buffer
+	char *dummy = " ";		// dummy string to be the value of URLs in the hashtable
+	char *resultURL; 			// URL from webpage_getNextURL
+	webpage_t *URLpage;		// the page created for a URL scanned from currpage
+
+	
+	// parse the command line, validate parameters, initialize other modules
+	if (argc != 4) {
+		fprintf(stderr, "usage: crawler seedURL pageDirectory maxDepth\n");
+		exit(1);
+	}
+
+	// easiest check first: maxDepth is an int and >= 0
+	if (sscanf(argv[3], "%d", &md) == 1) {
+		if (md < 0) {
+			fprintf(stderr, "maxDepth should be >= 0.\n");
+			exit(1);
+		}
+	}
+	else {
+		fprintf(stderr, "bad maxDepth input. Expected an integer >= 0.\n");
+		exit(1);
+	}
+
+	// normalize the seedURL first and exit on error
+	if (!NormalizeURL(argv[1])) {
+		fprintf(stderr, "error normalizing the seedURL\n");
+		exit(4);
+	}
+
+	// try to initialize the normalized seedURL as a webpage_t based on input
+	webpage_t *currpage = assertp(webpage_new(argv[1], 0, NULL), "error initializing seedURL as a webpage_t\n");
+
+	// test writing to pageDirectory by creating .crawler there
+	// (10 = /.crawler(9) + null-terminator(1))
+	char *dotCrawlerPath = assertp(calloc(10 + strlen(argv[2]), sizeof(char)), "error making .crawler path\n"); 
+	strcpy(dotCrawlerPath, argv[2]);
+	strcat(dotCrawlerPath, "/.crawler");
+	// create it with fopen(w), and immediately close it
+	fclose(assertp(fopen(dotCrawlerPath, "w"), "writing to pageDirectory failed\n"));
+	free(dotCrawlerPath);
+
+	// initialize the bag of webpages we have yet to explore
+	toVisit = assertp(bag_new(), "failed to initialize bag toVisit\n");
+
+	// initialize the hashtable of URLs we've seen so far - each URL as key, and
+	// a dummy character pointer as value (because NULL not allowed as value)
+	visited = assertp(hashtable_new(30), "failed to initialize hashtable visited\n");
+
+	// add it to the bag of webpages to crawl, assuming no error
+	bag_insert(toVisit, currpage);
+
+	// mark the normalized URL as visited, assuming no error
+	hashtable_insert(visited, argv[1], dummy);
+	
+	// while there are more webpages to crawl, extract one from the bag.
+	while((currpage = bag_extract(toVisit)) != NULL) {
+		// retrieve the webpage, exit upon failure.
+		// webpage_fetch() already implements a 1-sec delay after each attempt
+		if (!webpage_fetch(currpage)) {
+			fprintf(stderr, "error fetching webpage of URL: %s\n", webpage_getURL(currpage));
+			webpage_delete(currpage);
+			cleanup();
+			exit(2);
+		}
+		
+		// if for some reason its html is null, ignore this URL and continue
+		if (webpage_getHTML(currpage) == NULL) {
+			continue;
+		}
+		
+		// fetch success, write it to the specified path with current id.
+		// Increment id and exit on failure
+		if (!pagedir(currpage, argv[2], id++)) {
+			fprintf(stderr, "error writing html to file\n");
+			webpage_delete(currpage);
+			cleanup();
+			exit(3);
+		}
+
+		// explore the webpage if its depth is < maxDepth
+		if (webpage_getDepth(currpage) < md) {
+			// get the nextURL if possible
+			// currpage's html is compressed as a side effect, but doesn't matter.
+			while ((pos = webpage_getNextURL(currpage, pos, &resultURL)) > 0) {
+				// only proceed with URL that's valid and internal
+				// (IsInternalURL() normalizes the URL as a side effect)
+				if (IsInternalURL(resultURL)) {
+					// if it's never visited before, insert it into the bag
+					// (it's marked as visited in the process)
+					if (hashtable_insert(visited, resultURL, dummy)) {
+						URLpage = webpage_new(resultURL, webpage_getDepth(currpage) + 1, NULL);
+						bag_insert(toVisit, URLpage);
+					}
+				}
+				// free the memory allocated by webpage_getNextURL()
+				free(resultURL);
+			}
+		}
+
+		// free the current webpage - it's no longer useful
+		webpage_delete(currpage);
+	}
+	
+	cleanup();
+	exit(0);
+}
+
+// free the bag, and the hashtable
+void cleanup(void) {
+	bag_delete(toVisit, webpage_delete);
+	// dummy string doesn't need to be freed
+	hashtable_delete(visited, NULL);
+}
