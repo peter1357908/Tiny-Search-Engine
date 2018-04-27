@@ -6,8 +6,8 @@
  * BEWARE: hashtable size is set to be 30... under the current requirements
  * it's not easy to and I didn't make it adaptive.
  *
- * since webpage module uses assertp() already, I'll assume along that any
- * possible memory "still reachable" resulted from assertp() is fine.
+ * made my own notNull() function similar to notNull(), but actually frees
+ * everything before exiting.
  *
  * usage:
  *
@@ -20,7 +20,7 @@
  * 	2 - error fetching webpage
  *	3 - error writing webpage to file
  *	4 - error normalizing the seedURL
- *	99 - exited from an assertp() statement - see stderr for more information.
+ *	99 - exited from an notNull() statement - see stderr for more information.
  *
  *
  * Shengsong Gao, April 2018
@@ -37,6 +37,7 @@
 #include "pagedir.h"
 
 void cleanup(void); // free all allocated memory
+void *notNull(void *pointer, const char *message);
 inline static void logr(const char *word, const int depth, const char *url)
 {
 	printf("%2d %*s%9s: %s\n", depth, depth, "", word, url);
@@ -44,6 +45,7 @@ inline static void logr(const char *word, const int depth, const char *url)
 
 bag_t *toVisit;					// stores webpages we have yet to explore
 hashtable_t *visited;		// stores URLs we have visited
+webpage_t *currpage;		// current page being explored
 
 int main(const int argc, char *argv[]) {
 	int id = 1;						// id of the next webpage to be explored.
@@ -51,7 +53,6 @@ int main(const int argc, char *argv[]) {
 	int pos = 0;					// current position in the html buffer
 	char *dummy = " ";		// dummy string to be the value of URLs in the hashtable
 	char *resultURL; 			// URL from webpage_getNextURL
-	webpage_t *currpage;	// current page being explored
 	webpage_t *URLpage;		// the page created for a URL scanned from currpage
 
 	
@@ -80,23 +81,23 @@ int main(const int argc, char *argv[]) {
 	}
 
 	// try to initialize the normalized seedURL as a webpage_t based on input
-	currpage = assertp(webpage_new(argv[1], 0, NULL), "error initializing seedURL as a webpage_t\n");
+	currpage = notNull(webpage_new(argv[1], 0, NULL), "error initializing seedURL as a webpage_t\n");
 
 	// test writing to pageDirectory by creating .crawler there
 	// (10 = /.crawler(9) + null-terminator(1))
-	char *dotCrawlerPath = assertp(calloc(10 + strlen(argv[2]), sizeof(char)), "error making .crawler path\n"); 
+	char *dotCrawlerPath = notNull(calloc(10 + strlen(argv[2]), sizeof(char)), "error making .crawler path\n"); 
 	strcpy(dotCrawlerPath, argv[2]);
 	strcat(dotCrawlerPath, "/.crawler");
 	// create it with fopen(w), and immediately close it
-	fclose(assertp(fopen(dotCrawlerPath, "w"), "writing to pageDirectory failed\n"));
+	fclose(notNull(fopen(dotCrawlerPath, "w"), "writing to pageDirectory failed\n"));
 	free(dotCrawlerPath);
 
 	// initialize the bag of webpages we have yet to explore
-	toVisit = assertp(bag_new(), "failed to initialize bag toVisit\n");
+	toVisit = notNull(bag_new(), "failed to initialize bag toVisit\n");
 
 	// initialize the hashtable of URLs we've seen so far - each URL as key, and
 	// a dummy character pointer as value (because NULL not allowed as value)
-	visited = assertp(hashtable_new(30), "failed to initialize hashtable visited\n");
+	visited = notNull(hashtable_new(30), "failed to initialize hashtable visited\n");
 
 	// add it to the bag of webpages to crawl, assuming no error
 	bag_insert(toVisit, currpage);
@@ -110,7 +111,6 @@ int main(const int argc, char *argv[]) {
 		// webpage_fetch() already implements a 1-sec delay after each attempt
 		if (!webpage_fetch(currpage)) {
 			fprintf(stderr, "error fetching webpage of URL: %s\n", webpage_getURL(currpage));
-			webpage_delete(currpage);
 			cleanup();
 			exit(2);
 		}
@@ -126,7 +126,6 @@ int main(const int argc, char *argv[]) {
 		// Increment id and exit on failure
 		if (!pagedir(currpage, argv[2], id++)) {
 			fprintf(stderr, "error writing html to file\n");
-			webpage_delete(currpage);
 			cleanup();
 			exit(3);
 		}	
@@ -173,9 +172,19 @@ int main(const int argc, char *argv[]) {
 	exit(0);
 }
 
-// free the bag, and the hashtable
+// free the currpage, the bag, and the hashtable
 void cleanup(void) {
+	webpage_delete(currpage);
 	bag_delete(toVisit, webpage_delete);
 	// dummy string doesn't need to be freed
 	hashtable_delete(visited, NULL);
+}
+
+void *notNull(void *pointer, const char *message) {
+	if (pointer == NULL) {
+		cleanup();
+		fprintf(stderr, "NULL detected! %s\n", message);
+		exit(99);
+	}
+	return pointer;
 }
