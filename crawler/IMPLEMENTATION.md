@@ -40,8 +40,8 @@ My program perfectly follows the pseudo code suggested by the TSE Crawler Design
     7. free the current webpage - it's no longer useful
   2. clean up! Free every allocation.	
 
-
-BEWARE: hashtable size is set to be 30... under the current requirements, it's not easy to and I didn't make it adaptive.
-made my own notNull() function similar to notNull(), but actually frees everything before exiting.
+### Note:
+1. BEWARE: hashtable size is set to be 30... under the current requirements, it's not easy to and thus I didn't make it adaptive.
+2. I made my own notNull() function, which is similar to notNull(), but actually frees everything before exiting.
 
 
