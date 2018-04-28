@@ -33,7 +33,6 @@
 #include "bag.h"
 #include "hashtable.h"
 #include "webpage.h"
-#include "memory.h"
 #include "pagedir.h"
 
 void cleanup(void); 																// free all allocated memory
