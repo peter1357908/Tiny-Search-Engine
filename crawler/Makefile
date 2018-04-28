@@ -38,7 +38,7 @@ $(COMMONPATH)libcommon.a: $(COMMONFILES) $(COMMONHEADERS)
 .PHONY: test clean
 
 test: $(PROG)
-	./$(PROG)
+	cd tests; bash ./badCommandLine.sh; bash ./crawling.sh
 
 clean:
 	rm -f *~ *.o *.dSYM

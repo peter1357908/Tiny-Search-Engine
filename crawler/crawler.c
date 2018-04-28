@@ -130,8 +130,6 @@ void crawler(char *seedURL, char *path, int md) {
 			continue;
 		}
 		
-		logr("Fetched", webpage_getDepth(currpage), webpage_getURL(currpage));
-
 		// fetch success, write it to the specified path with current id.
 		// Increment id and exit on failure
 		if (!pagedir(currpage, path, id++)) {
@@ -140,10 +138,11 @@ void crawler(char *seedURL, char *path, int md) {
 			exit(3);
 		}	
 
-		logr("Saved", webpage_getDepth(currpage), webpage_getURL(currpage));
+		logr("Fetched", webpage_getDepth(currpage), webpage_getURL(currpage));
 
 		// explore the webpage if its depth is < maxDepth
 		if (webpage_getDepth(currpage) < md) {
+			logr("Scanning", webpage_getDepth(currpage), webpage_getURL(currpage));
 			// get the nextURL if possible
 			// currpage's html is compressed as a side effect, but doesn't matter.
 			while ((pos = webpage_getNextURL(currpage, pos, &resultURL)) > 0) {
@@ -192,7 +191,7 @@ void cleanup(void) {
 void *notNull(void *pointer, const char *message) {
 	if (pointer == NULL) {
 		cleanup();
-		fprintf(stderr, "NULL detected! %s\n", message);
+		fprintf(stderr, "NULL detected: %s\n", message);
 		exit(99);
 	}
 	return pointer;
