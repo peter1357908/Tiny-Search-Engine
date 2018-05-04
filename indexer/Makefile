@@ -38,8 +38,9 @@ $(COMMONPATH)libcommon.a: $(COMMONFILES) $(COMMONHEADERS)
 .PHONY: test clean
 
 test: $(PROG)
-	cd tests; bash ./badCommandLine.sh; bash ./indexing.sh
+	cd tests; bash ./badCommandLine.sh; echo; bash ./indexing.sh
 
 clean:
 	rm -f *~ *.o *.dSYM
 	rm -f $(PROG)
+	rm -f ./tests/output/*
