@@ -22,144 +22,80 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include "set.h"
 #include "counter.h"
 #include "hashtable.h"
-#include "words.h"
+#include "word.h"
 #include "webpage.h"
 #include "pagedir.h"
 
 void cleanup(void); 																// free all allocated memory
 void *notNull(void *pointer, const char *message);	// optimized assertp()
-void indexer(char *seedURL, char *path, int md); 		// actual indexer
+void indexer(void); 																// make the index data structure
+void indexSaver(void);															// save the index to a file
 
+// the variables initialized by main, used by indexer, and deleted by cleanup.
 hashtable_t *index;				// the ultimate index data structure
+char *dir;								// the pageDirectory
+FILE *indexFile;					// the index file
 
 // parse the command line, validate parameters, initialize other modules
 int main(const int argc, char *argv[]) {
-	
+	dir = argv[1];
+
 	if (argc != 3) {
 		fprintf(stderr, "usage: ./indexer pageDirectory indexFilename\n");
 		exit(1);
 	}
-
-	else if (!isCrawlerDirectory(argv[1])) {
-		fprintf(stderr, "pageDirectory '%s' isn't a crawler-produced directory!\n", argv[1]);
+	else if (!isCrawlerDirectory(dir)) {
+		fprintf(stderr, "pageDirectory '%s' isn't a crawler-produced directory!\n", dir);
+		exit(1);
+	}
+	else if ((indexFile = fopen(argv[2], "w")) == NULL) {
+		fprintf(stderr, "writing to indexFile '%s' failed!\n", argv[2]);
 		exit(1);
 	}
 
-	// normalize the seedURL first and exit on error
-	if (!NormalizeURL(argv[1])) {
-		fprintf(stderr, "error normalizing the seedURL\n");
-		exit(4);
-	}
+	index = hashtable_new(900);
+	indexer();
+	indexSaver();
 	
-	// try to initialize the normalized seedURL as a webpage_t based on input
-	currpage = notNull(webpage_new(argv[1], 0, NULL), "error initializing seedURL as a webpage_t\n");
-
-	// test writing to pageDirectory by creating .indexer there
-	// (10 = /.indexer(9) + null-terminator(1))
-	char *dotCrawlerPath = notNull(calloc(10 + strlen(argv[2]), sizeof(char)), "error making .indexer path\n"); 
-	strcpy(dotCrawlerPath, argv[2]);
-	strcat(dotCrawlerPath, "/.indexer");
-	// create it with fopen(w), and immediately close it
-	fclose(notNull(fopen(dotCrawlerPath, "w"), "writing to pageDirectory failed\n"));
-	free(dotCrawlerPath);
-
-	// initialize the bag of webpages we have yet to explore
-	toVisit = notNull(bag_new(), "failed to initialize bag toVisit\n");
-
-	// initialize the hashtable of URLs we've seen so far - each URL as key, and
-	// a dummy character pointer as value (because NULL not allowed as value)
-	visited = notNull(hashtable_new(30), "failed to initialize hashtable visited\n");
-	
-	indexer(argv[1], argv[2], md);
-
+	fclose(indexFile);
+	cleanup();
 	exit(0);
 }
 
-// do the actual indexin'! 
-void indexer(char *seedURL, char *path, int md) {
-	int id = 1;						// id of the next webpage to be explored.
-	int pos = 0;					// current position in the html buffer
-	char *dummy = " ";		// dummy string to be the value of URLs in the hashtable
-	char *resultURL; 			// URL from webpage_getNextURL
-	webpage_t *URLpage;		// the page created for a URL scanned from currpage
+// make the index data structure
+void indexer(void) {
+	int id = 1;								// the id of the current webpage file
+	int pos = 0;							// stores the current position into words in currPage
+	char *currWord;						// stores the current word in currPage
+	webpage_t *currPage;			// the current webpage
+	counters_t *currCounter; 	// stores the current counter
+
 	
-	// add it to the bag of webpages to index, assuming no error
-	bag_insert(toVisit, currpage);
-
-	// mark the normalized URL as visited, assuming no error
-	hashtable_insert(visited, seedURL, dummy);
-	
-	// while there are more webpages to index, extract one from the bag.
-	while((currpage = bag_extract(toVisit)) != NULL) {
-		// retrieve the webpage, exit upon failure.
-		// webpage_fetch() already implements a 1-sec delay after each attempt
-		if (!webpage_fetch(currpage)) {
-			fprintf(stderr, "error fetching webpage of URL: %s\n", webpage_getURL(currpage));
-			cleanup();
-			exit(2);
+	// for each file in the pageDirectory, load into 'currPage'
+	while ((currPage = loadPage(dir, id++)) != NULL) {
+		// for each word in 'currPage'...
+		while ((pos = webpage_getNextWord(currPage, pos, &currWord)) > 0) {
+			// insert the word with a new counter, if it exists, nothing happens
+			hashtable_insert(index, currWord, counters_new());
+			// increment the count
+			counters_add(hashtable_find(currWord), id);
+			// free the allocated space for the current string
+			free(currWord);
 		}
-		
-		// if for some reason its html is null, ignore this URL and continue
-		if (webpage_getHTML(currpage) == NULL) {
-			continue;
-		}
-		
-		// fetch success, write it to the specified path with current id.
-		// Increment id and exit on failure
-		if (!pagedir(currpage, path, id++)) {
-			fprintf(stderr, "error writing html to file\n");
-			cleanup();
-			exit(3);
-		}	
-
-		logr("Fetched", webpage_getDepth(currpage), webpage_getURL(currpage));
-
-		// explore the webpage if its depth is < maxDepth
-		if (webpage_getDepth(currpage) < md) {
-			logr("Scanning", webpage_getDepth(currpage), webpage_getURL(currpage));
-			// get the nextURL if possible
-			// currpage's html is compressed as a side effect, but doesn't matter.
-			while ((pos = webpage_getNextURL(currpage, pos, &resultURL)) > 0) {
-				// only proceed with URL that's valid and internal
-				// (IsInternalURL() normalizes the URL as a side effect)
-				logr("Found", webpage_getDepth(currpage), resultURL);
-
-				if (IsInternalURL(resultURL)) {
-					// if it's never visited before, insert it into the bag
-					// (it's marked as visited in the process)
-					if (hashtable_insert(visited, resultURL, dummy)) {
-						URLpage = webpage_new(resultURL, webpage_getDepth(currpage) + 1, NULL);
-						bag_insert(toVisit, URLpage);
-						logr("Added", webpage_getDepth(currpage), resultURL);
-					}
-					else {
-						logr("IgnDupl", webpage_getDepth(currpage), resultURL);
-					}
-				}
-				else {
-					logr("IgnExtrn", webpage_getDepth(currpage), resultURL);
-				}
-
-				// free the memory allocated by webpage_getNextURL()
-				free(resultURL);
-			}
-			// reset pos
-			pos = 0;
-		}
-
-		// free the current webpage - it's no longer useful
-		webpage_delete(currpage);
+		// reset position tracker
+		pos = 0;
 	}
-	
-	cleanup();
+
+
+	webpage_delete(currPage);
 }
 
 // free the currpage, the bag, and the hashtable
 void cleanup(void) {
-	webpage_delete(currpage);
-	hashtable_delete(visited, NULL);
+	hashtable_delete(index, counter_delete);
 }
 
 void *notNull(void *pointer, const char *message) {

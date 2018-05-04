@@ -17,13 +17,18 @@ bool pagedir(webpage_t *page, char *dir, int id);
 // tests if dir is crawler dir by trying to read .crawler file in the root of dir
 bool isCrawlerDirectory(char *dir);
 	
-// concatenate file string, file separator "/", and the directory path string
-// the caller is responsible for freeing the returned string
-// returns NULL on calloc() error
+/* 
+ * concatenate file string, file separator "/", and the directory path string
+ * the caller is responsible for freeing the returned string
+ * returns NULL on calloc() error
+ */
 char *catPath(char *dir, char *file);
 
-// loads the content of a saved webpage file into a webpage_t
-// assuming legal file content, "need not have extensive error checking"
+/* 
+ * loads the content of a saved webpage file into a webpage_t
+ * assuming legal file content, "need not have extensive error checking"
+ * the caller is responsible for freeing the returned webpage.
+ */
 webpage_t *loadPage(char *dir, int id); 
 
 

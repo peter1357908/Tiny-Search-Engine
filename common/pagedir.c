@@ -89,8 +89,12 @@ char *catPath(char *dir, char *file) {
 	return filePath;
 }
 
-// loads the content of a saved webpage file into a webpage_t
-// assuming legal file content, "need not have extensive error checking"
+/* 
+ * loads the content of a saved webpage file into a webpage_t
+ * assuming legal file content, "need not have extensive error checking"
+ * the caller is responsible for freeing the returned webpage.
+ */
+
 webpage_t *loadPage(char *dir, int id) {
 	char *pagePath; 					// the local file path of the webpage to be stored
 	char idString[12]; 				// stores the string form of the id integer
@@ -108,19 +112,22 @@ webpage_t *loadPage(char *dir, int id) {
 	
 	// (create and) open the file
 	if ((file = fopen(pagePath, "r")) != NULL) {
+		free(pagePath);
+
 		// first line: URL
 		url = readlinep(file);
+		free(url);
+		
 		// second line: depth, also convert to an integer (non-negative)
 		depth = readlinep(file);
 		sscanf(depth, "%d", &depthInt);
-		// rest: page content
+		free(depth)
+		
+		// rest: page content - html not freed because 'result' still refers to it.
 		html = readfilep(file);
-		result = webpage_new(url, depthInt, html);
-		// clean up. html is not freed because webpage_t still refers to it
 		fclose(file);
-		free(pagePath);
-		free(url);
-		free(depth);
+		result = webpage_new(url, depthInt, html);
+		
 		return result;
 	}
 	free(pagePath);
