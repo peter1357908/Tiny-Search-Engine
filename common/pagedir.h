@@ -22,5 +22,9 @@ bool isCrawlerDirectory(char *dir);
 // returns NULL on calloc() error
 char *catPath(char *dir, char *file);
 
+// loads the content of a saved webpage file into a webpage_t
+// assuming legal file content, "need not have extensive error checking"
+webpage_t *loadPage(char *dir, int id); 
+
 
 #endif // __PAGEDIR_H

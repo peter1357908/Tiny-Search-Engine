@@ -15,7 +15,7 @@
  * 	99 - exited from an notNull() statement - see stderr for more information.
  *
  *
- * Shengsong Gao, April 2018
+ * Shengsong Gao, May 2018
  */
 
 #include <stdio.h>
@@ -42,8 +42,8 @@ int main(const int argc, char *argv[]) {
 		exit(1);
 	}
 
-	else {
-		fprintf(stderr, "bad maxDepth input. Expected an integer >= 0.\n");
+	else if (!isCrawlerDirectory(argv[1])) {
+		fprintf(stderr, "pageDirectory '%s' isn't a crawler-produced directory!\n", argv[1]);
 		exit(1);
 	}
 

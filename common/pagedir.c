@@ -12,21 +12,19 @@
 #include <string.h>
 #include "webpage.h"
 #include "pagedir.h"
-
-// not visible outside of pagedir.c:
-bool insertS(char *theS, FILE *file);
+#include "file.h"
 
 // visible and usable functions outside of pagedir.c
 bool pagedir(webpage_t *page, char *dir, int id);
 bool isCrawlerDirectory(char *dir);
 char *catPath(char *dir, char *file);
-
+webpage_t *loadPage(char *dir, int id);
 
 // writes webpage content to a file with id as name, in dir
 bool pagedir(webpage_t *page, char *dir, int id) {
 	char *pagePath; 			// the local file path of the webpage to be stored
-	char idString[12]; 		// stores the string form of the integer id
-	char depthString[12];	// stores the string form of the integer depth
+	char idString[12]; 		// stores the string form of the id integer
+	char depthString[12];	// stores the string form of the depth integer
 	FILE *file;						// the file to write onto
 	
 	// convert the integers into its string form, return false on failure
@@ -40,13 +38,13 @@ bool pagedir(webpage_t *page, char *dir, int id) {
 	if ((file = fopen(pagePath, "w")) != NULL) {
 		// I can but didn't easily assume no error - the output has to be perfect.
 		// first line: URL
-		if (insertS(webpage_getURL(page), file) &&
+		if (fputs(webpage_getURL(page), file) != EOF &&
 				// second line: depth
-				insertS("\n", file) &&
-				insertS(depthString, file) &&
+				fputs("\n", file) != EOF &&
+				fputs(depthString, file) != EOF &&
 				// rest: page content
-				insertS("\n", file) &&
-				insertS(webpage_getHTML(page), file))
+				fputs("\n", file) != EOF &&
+				fputs(webpage_getHTML(page), file) != EOF)
 		{
 			fclose(file);
 			free(pagePath);
@@ -91,10 +89,41 @@ char *catPath(char *dir, char *file) {
 	return filePath;
 }
 
-// insert the string into the file: false if something went wrong, true otherwise.
-bool insertS(char *theS, FILE *file) {
-	if (fputs(theS, file) == EOF) {
-		return false;
+// loads the content of a saved webpage file into a webpage_t
+// assuming legal file content, "need not have extensive error checking"
+webpage_t *loadPage(char *dir, int id) {
+	char *pagePath; 					// the local file path of the webpage to be stored
+	char idString[12]; 				// stores the string form of the id integer
+	char *url, *depth, *html;	// stores the url, depth, and html
+	int depthInt;							// stores the integer form of the depth string
+	FILE *file;								// the file to read from
+	webpage_t *result; 				// the webpage_t to be returned
+
+	// convert the integers into its string form, return NULL on failure
+	if (sprintf(idString, "%d", id) < 0) {
+		return NULL;
 	}
-	return true;
+	
+	pagePath = catPath(dir, idString);
+	
+	// (create and) open the file
+	if ((file = fopen(pagePath, "r")) != NULL) {
+		// first line: URL
+		url = readlinep(file);
+		// second line: depth, also convert to an integer (non-negative)
+		depth = readlinep(file);
+		sscanf(depth, "%d", &depthInt);
+		// rest: page content
+		html = readfilep(file);
+		result = webpage_new(url, depthInt, html);
+		// clean up. html is not freed because webpage_t still refers to it
+		fclose(file);
+		free(pagePath);
+		free(url);
+		free(depth);
+		return result;
+	}
+	free(pagePath);
+	return NULL;
 }
+	
