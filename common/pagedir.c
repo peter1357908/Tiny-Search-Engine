@@ -1,5 +1,5 @@
 /*
- * pagedir.c - writes html string into a file with the provided webpage info
+ * pagedir.c - writes webpage content into a file (url, depth, html)
  *
  * see pagedir.h for more information
  *
@@ -16,7 +16,14 @@
 // not visible outside of pagedir.c:
 bool insertS(char *theS, FILE *file);
 
-bool pagedir(webpage_t *page, char *path, int id) {
+// visible and usable functions outside of pagedir.c
+bool pagedir(webpage_t *page, char *dir, int id);
+bool isCrawlerDirectory(char *dir);
+char *catPath(char *dir, char *file);
+
+
+// writes webpage content to a file with id as name, in dir
+bool pagedir(webpage_t *page, char *dir, int id) {
 	char *pagePath; 			// the local file path of the webpage to be stored
 	char idString[12]; 		// stores the string form of the integer id
 	char depthString[12];	// stores the string form of the integer depth
@@ -27,14 +34,7 @@ bool pagedir(webpage_t *page, char *path, int id) {
 		return false;
 	}
 	
-	// construct the pagePath
-	// length of path plus 13 (11 for idString + 2 for a slash and a null terminator)
-	if ((pagePath = calloc(strlen(path) + 13, sizeof(char))) == NULL) {
-		return false;
-	}
-	strcpy(pagePath, path);
-	strcat(pagePath, "/");
-	strcat(pagePath, idString);
+	pagePath = catPath(dir, idString);
 	
 	// (create and) open the file
 	if ((file = fopen(pagePath, "w")) != NULL) {
@@ -55,6 +55,40 @@ bool pagedir(webpage_t *page, char *path, int id) {
 	}
 	free(pagePath);
 	return false;	
+}
+
+// tests if dir is crawler dir by trying to read .crawler file in the root of dir
+bool isCrawlerDirectory(char *dir) {
+	char *path;     // path for the .crawler file
+	FILE *file;			// the .crawler file
+	
+	path = catPath(dir, ".crawler");
+
+	// tries to open the file
+	if ((file = fopen(path, "r")) != NULL) {
+		fclose(file);
+		free(path);
+		return true;
+	}
+	free(path);
+	return false;
+}
+	
+// concatenate file string, file separator "/", and the directory path string
+// the caller is responsible for freeing the returned string
+char *catPath(char *dir, char *file) {
+	char *filePath;
+	
+	// +1 for null terminator, and another +1 for file separator
+	if ((filePath = calloc(strlen(dir) + strlen(file) + 2, sizeof(char))) == NULL) {
+		return NULL;
+	}
+	
+	strcpy(filePath, dir);
+	strcat(filePath, "/");
+	strcat(filePath, file);
+
+	return filePath;
 }
 
 // insert the string into the file: false if something went wrong, true otherwise.

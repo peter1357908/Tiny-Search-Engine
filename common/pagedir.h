@@ -1,10 +1,6 @@
 /*
  * pagedir.h - header file for pagedir.c 
  *
- * pagedir writes html string into a file, with the provided id and path.
- *
- * returns false for any error and true for success
- *
  * Shengsong Gao, April 2018.
  */
 
@@ -15,6 +11,16 @@
 #include <stdbool.h>
 #include "webpage.h"
 
-bool pagedir(webpage_t *page, char *path, int id);
+// writes webpage content (url, depth, html) to "dir/id"
+bool pagedir(webpage_t *page, char *dir, int id);
+
+// tests if dir is crawler dir by trying to read .crawler file in the root of dir
+bool isCrawlerDirectory(char *dir);
+	
+// concatenate file string, file separator "/", and the directory path string
+// the caller is responsible for freeing the returned string
+// returns NULL on calloc() error
+char *catPath(char *dir, char *file);
+
 
 #endif // __PAGEDIR_H
