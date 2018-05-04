@@ -121,7 +121,7 @@ webpage_t *loadPage(char *dir, int id) {
 		// second line: depth, also convert to an integer (non-negative)
 		depth = readlinep(file);
 		sscanf(depth, "%d", &depthInt);
-		free(depth)
+		free(depth);
 		
 		// rest: page content - html not freed because 'result' still refers to it.
 		html = readfilep(file);
