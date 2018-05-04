@@ -16,7 +16,12 @@
 #include "webpage.h"
 #include "pagedir.h"
 
-// make the hashtable-counters data structure for index
+// functions intended for use inside index.c only
+void indexPrinter(void *arg, const char *key, void *item);
+void counterPrinter(void *arg, const int key, int count);
+void counterDeleter(void *item);
+
+
 void indexMaker(hashtable_t *index, char *dir) {
 	int id = 1;// the id of the current webpage file
 	int pos = 0;// stores the current position into words in currPage
@@ -54,30 +59,39 @@ void indexSaver(hashtable_t *index, FILE *indexFile) {
 
 
 // print the index hashtable. Returns 'false' on error and 'true' otherwise
-bool indexPrinter(void *arg, const char *key, void *item) {
+void indexPrinter(void *arg, const char *key, void *item) {
+	if (arg == NULL) {
+		fprintf(stderr, "indexFile arg passed to indexPrinter is NULL!\n");
+		exit(2);
+	}
 	FILE *indexFile = arg;
 	counters_t *counter = item;
 	// print the word
 	if (fputs(key, indexFile) == EOF) {
-		return false;
+		fprintf(stderr, "failed when printing the string '%s' to index file.\n", key);
+		exit(2);
 	}
 	// print the counters for that word
-	counters_iterate(counter, NULL, counterPrinter);
+	counters_iterate(counter, indexFile, counterPrinter);
 	// go to the next line
 	if (fputc('\n', indexFile) == EOF) {
-		return false;
+		fprintf(stderr, "failed to print a newline character to index file.\n");
+		exit(2);
 	}
-
-	return true;
 }
 
 // print the counters for each word. Returns 'false' on error and 'true' otherwise
-bool counterPrinter(void *arg, const int key, int count) {
+void counterPrinter(void *arg, const int key, int count) {
+	if (arg == NULL) {
+		fprintf(stderr, "indexFile arg passed to counterPrinter is NULL!\n");
+		exit(2);
+	}
 	FILE *indexFile = arg;
 	char id[12], tally[12]; // stores the string form of the id integer and tally integer
 	
 	if (sprintf(id, "%d", key) < 0 || sprintf(tally, "%d", count) < 0) {
-		return false;
+		fprintf(stderr, "failed when parsing the doc id or tally to string.\n");
+		exit(3);
 	}
 	
 	// won't let one error get away
@@ -87,10 +101,9 @@ bool counterPrinter(void *arg, const int key, int count) {
 			fputc(' ', indexFile) == EOF   ||
 			fputs(tally, indexFile) == EOF
 			) {
-		return false;
+		fprintf(stderr, "failed when writing docID or tally to the indexFile.\n");
+		exit(2);
 	}
-
-	return true;
 }
 
 // to pass into hashtable_delete - just calls counters_delete
@@ -99,7 +112,7 @@ void counterDeleter(void *item) {
 	counters_delete(counter);
 }
 
-void indexDeleter(void) {
+void indexDeleter(hashtable_t *index) {
 	hashtable_delete(index, counterDeleter);
 }
 
