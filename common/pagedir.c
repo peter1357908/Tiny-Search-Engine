@@ -114,11 +114,10 @@ webpage_t *loadPage(char *dir, int id) {
 	if ((file = fopen(pagePath, "r")) != NULL) {
 		free(pagePath);
 
-		// first line: URL
+		// first line: URL. Free after webpage_new().
 		url = readlinep(file);
-		free(url);
 		
-		// second line: depth, also convert to an integer (non-negative)
+		// second line: depth. Freed after conversion to integer.
 		depth = readlinep(file);
 		sscanf(depth, "%d", &depthInt);
 		free(depth);
@@ -126,8 +125,10 @@ webpage_t *loadPage(char *dir, int id) {
 		// rest: page content - html not freed because 'result' still refers to it.
 		html = readfilep(file);
 		fclose(file);
-		result = webpage_new(url, depthInt, html);
 		
+		result = webpage_new(url, depthInt, html);
+		free(url);
+
 		return result;
 	}
 	free(pagePath);

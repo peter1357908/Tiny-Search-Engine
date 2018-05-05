@@ -23,10 +23,11 @@ void counterDeleter(void *item);
 
 
 void indexMaker(hashtable_t *index, char *dir) {
-	int id = 1;// the id of the current webpage file
-	int pos = 0;// stores the current position into words in currPage
-	char *currWord;// stores the current word in currPage
-	webpage_t *currPage;// the current webpage
+	int id = 1;								// the id of the current webpage file
+	int pos = 0;							// stores the current position into words in currPage
+	char *currWord;						// stores the current word in currPage
+	webpage_t *currPage;			// the current webpage
+	counters_t *currCounter;	// the current counter
 	
 	// for each file in the pageDirectory, load into 'currPage'
 	while ((currPage = loadPage(dir, id)) != NULL) {
@@ -34,12 +35,17 @@ void indexMaker(hashtable_t *index, char *dir) {
 		while ((pos = webpage_getNextWord(currPage, pos, &currWord)) > 0) {
 			// ignore words with fewer than 3 characters, and normalize the word
 			if (strlen(currWord) < 3) {
+				free(currWord);
 				continue;
 			}
 			NormalizeWord(currWord);
-			// insert the word with a new counter - if it already exists, nothing happens
-			// ignore any potential errors
-			hashtable_insert(index, currWord, counters_new());
+			// try to insert the word with a new counter
+			currCounter = counters_new();
+			if (!hashtable_insert(index, currWord, currCounter)) {
+				// if failed, the word exists already, free currCounter
+				counters_delete(currCounter);
+			}
+
 			// increment the count
 			counters_add(hashtable_find(index, currWord), id);
 			// free the allocated space for the current string
