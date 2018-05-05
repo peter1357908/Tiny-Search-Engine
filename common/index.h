@@ -15,9 +15,13 @@
 #include "hashtable.h"
 
 // make the hashtable-counters data structure for index
-void indexMaker(hashtable_t *index, char *dir);
+// dir is the crawler directory - the caller is responsible for validation
+hashtable_t *indexMaker(char *dir);
 
-// save the index data structure into a file
+// load index file and return an index data structure
+hashtable_t *indexLoader(FILE *old);
+
+// save the index data structure into the specified file
 void indexSaver(hashtable_t *index, FILE *indexFile);
 
 // delete the index by deleting the hashtable and its counters sub-structures

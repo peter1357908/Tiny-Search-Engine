@@ -15,6 +15,7 @@
 #include "word.h"
 #include "webpage.h"
 #include "pagedir.h"
+#include "file.h"
 
 // functions intended for use inside index.c only
 void indexPrinter(void *arg, const char *key, void *item);
@@ -22,12 +23,18 @@ void counterPrinter(void *arg, const int key, int count);
 void counterDeleter(void *item);
 
 
-void indexMaker(hashtable_t *index, char *dir) {
+hashtable_t *indexMaker(char *dir) {
 	int id = 1;								// the id of the current webpage file
 	int pos = 0;							// stores the current position into words in currPage
 	char *currWord;						// stores the current word in currPage
 	webpage_t *currPage;			// the current webpage
 	counters_t *currCounter;	// the current counter
+	hashtable_t *index;				// the index structure to be returned
+
+	if ((index = hashtable_new(900)) == NULL) {
+		fprintf(stderr, "failed when initializing the index hashtable_t.\n");
+		exit(4);
+	}
 	
 	// for each file in the pageDirectory, load into 'currPage'
 	while ((currPage = loadPage(dir, id)) != NULL) {
@@ -56,6 +63,27 @@ void indexMaker(hashtable_t *index, char *dir) {
 		pos = 0;
 		id++;
 	}
+	
+	return index;
+}
+
+hashtable_t *indexLoader(FILE *file) {
+	hashtable_t *index;				// the index structure to be returned
+	int currID, currTally;		// stores the current ID and its counter
+	char *currWord;						// stores the current word
+	
+	// makes a hashtable with twice the slots as there are words in the file
+	if ((index = hashtable_new(2 * lines_in_file(file))) == NULL) {
+		fprintf(stderr, "failed when initializing the index hashtable_t.\n");
+		exit(4);
+	}
+	
+	while (fscanf(file, "%s", currWord) != EOF) {
+		while (fscanf(file, "%d", currID) != EOF) {
+
+
+
+
 }
 
 // save the index data structure into a file

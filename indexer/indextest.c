@@ -1,19 +1,16 @@
 /*
- * indexer.c - for CS50 lab5, and as part of CS50 TSE project
+ * indextest.c - for CS50 lab5, and as part of CS50 TSE project
  *
  * see the markdown files in the same directory for more information.
  *
  * usage:
  *
- * ./indexer pageDirectory indexFilename
+ * ./indextest oldIndexFilename newIndexFilename
  *
- * exit status (2~4 are from 'index' module):
+ * exit status (2 and 3 are from 'index' module):
  * 	
  * 	0 - success
  * 	1 - error during argument parsing (unexpected number of arguments, bad input, etc.)
- * 	2 - error printing something to the index file
- * 	3 - error converting the integers in the counter to string
- * 	4 - error initializing the index hashtable
  *
  * Shengsong Gao, May 2018
  */
@@ -46,8 +43,13 @@ int main(const int argc, char *argv[]) {
 		exit(1);
 	}
 
-	// make a new hashtable, fill up the hashtable, and print to indexFile.	
-	index = indexMaker(dir);
+	// make a new hashtable, fill up the hashtable, and print to indexFile.
+	if ((index = hashtable_new(900)) == NULL) {
+		fprintf(stderr, "failed when initializing the index hashtable.\n");
+		exit(4);
+	}
+	
+	indexMaker(index, dir);
 	indexSaver(index, indexFile);
 
 	// clean up.
