@@ -66,7 +66,7 @@
 
 ### Assumptions
 
-####`index` module
+#### `index` module
 `pageDirectory` has files named 1, 2, 3, …, without gaps.
 The content of files in `pageDirectory` follow the format as defined in the specs
 The content of the index file follows the following format:
