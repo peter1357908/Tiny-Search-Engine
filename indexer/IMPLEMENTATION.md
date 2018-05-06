@@ -1,47 +1,79 @@
-# IMPLEMENTATION.md for CS50 Lab 4 Crawler
+# IMPLEMENTATION.md for CS50 Lab 5 Indexer
 ## Shengsong Gao, April 2018
 
 ### Pseudo Code (C and Implement-dependent)
-The following is a modified transcript of the relevant comments in my crawler.c
-My program perfectly follows the pseudo code suggested by the TSE Crawler Design Spec
-(Which is why I dare to compare the process printed by my crawler with the process printed by ~cs50/demo/crawler in [TESTING](TESTING.md))
+#### `indexer`:
+1. validate command-line arguments. Exit if:
+  1. `argc` isn't 3 or
+	2. the directory isn't a crawler directory or
+	3. the target `indexFile` cannot be opened for write (opening the file for write in the process)
+2. get index from `indexMaker`, a function of the `index` module.
+3. save index through `indexSaver`, a function of the `index` module.
+4. close the file
+5. free all the allocated space
 
-### main()
-	1. parse the command line, validate parameters, initialize other modules
-	2. easiest check first: maxDepth is an int and >= 0
-	3. normalize the seedURL first and exit on error
-	4. try to initialize the normalized seedURL as a webpage_t based on input
-	5. test writing to pageDirectory by creating .crawler there
-	6. create it with fopen(w), and immediately close it
-	7. initialize the bag of webpages we have yet to explore
-	8. initialize the hashtable of URLs we've seen so far - each URL as key, and a dummy character pointer as value (because NULL is not allowed as value)
+#### `indextest`:
+1. validate command-line arguments. Exit if:
+  1. `argc` isn't 3 or
+	2. `oldIndexFile` cannot be opened for read (opening the file for read in the process)
+	3. `newIndexFile` cannot be opened for write (opening the file for write in the process)
+2. load index from oldIndexFile through `indexLoader`, a function of the `index` module.
+3. close oldIndexFile
+4. save index through `indexSaver`, a function of the `index` module.
+5. close newIndexFile
+6. free all the allocated space
 
-### crawler()
+#### `index` module:
+`indexMaker`:
+1. make a new index hashtable (of size 900, for this lab)
+2. for each crawler-produced file in the pageDirectory
+  1. load the file back into a webpage_t through `loadPage` function from `pagedir` module
+  2. for each word in the webpage_t
+    1. skip words with fewer than 3 characters
+    2. normalize the word (tolower)
+    3. try to get its `counters` from the hashtable, and if failed, make a `counters` for the word
+    4. increment the count for the current file for the current word
+3. return the index hashtable
 
-#### setup
-	1. do the actual crawlin'! 
-	2. add the seedPage to the bag of webpages to crawl, assuming no error
-	3. mark its normalized URL as visited, assuming no error
-#### major loop
-  1. while there are more webpages to crawl, extract one from the bag.
-    1. retrieve the webpage, exit upon failure.
-    2. webpage_fetch() already implements a 1-sec delay after each attempt
-    3. if for some reason its html is null, ignore this URL and continue
-    4. else, fetch succeeded, write it to the specified path with current id.
-    5. Increment id and exit on failure
-    6. explore the webpage if its depth is < maxDepth
-      1. get the nextURL if possible
-      2. currpage's html is compressed as a side effect, but doesn't matter, because it's already "fetched" into a file and won't be used again
-        1. only proceed with URL that's valid and internal
-          1. if it's never visited before, insert it into the bag
-          2. (it's marked as visited in the process)
-        2. free the memory allocated by webpage_getNextURL()
-      3. reset pos    
-    7. free the current webpage - it's no longer useful
-  2. clean up! Free every allocation.	
+`indexLoader`:
+1. make a new index hashtable (as big as twice the number of words in the indexFile)
+2. for each word read from the file
+  1. make a new `counters` (because we expect each word to be unique)
+  2. insert the `counters` into the hashtable
+  3. for each pair of integers read from the file
+    1. set the `counters` structure accordingly - first int is ID, second int is tally.
+3. return the index hashtable
 
-### Note:
-1. BEWARE: hashtable size is set to be 30... under the current requirements, it's not easy to and thus I didn't make it adaptive.
-2. I made my own notNull() function, which is similar to notNull(), but actually frees everything before exiting.
+`indexSaver`:
+1. iterate through the index hashtble with `indexPrinter`
 
+`indexPrinter`:
+1. print the word to the file, and iterate through the `counters` structure for this word with `counterPrinter`
+2. go to the next line
 
+`counterPrinter`:
+1. scan the integer ID and tally into strings
+2. print according to the format *docID tally [docID tally]...*
+
+#### `loadPage` function from `pagedir` module:
+1. concatenate the directory string with a file separator, and the file name string
+2. open the crawler-produced file for read
+3. store the first line as url
+4. store the second line as depth
+5. store the rest of the file as html
+6. make a webpage_t with the url, depth, and html above
+7. return the webpage_t
+
+### Assumptions
+
+####`index` module
+`pageDirectory` has files named 1, 2, 3, …, without gaps.
+The content of files in `pageDirectory` follow the format as defined in the specs
+The content of the index file follows the following format:
+1. one line per word, one word per line
+2. each line provides the word and one or more (docID, count) pairs, in the format
+  *_word docID count [docID count]…_
+    *where word is a string of lower-case letters,
+    *where docID is a positive non-zero integer,
+    *where count is a positive non-zero integer,
+    *where the word and integers are separated by spaces.
