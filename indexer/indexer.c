@@ -23,8 +23,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include "hashtable.h"
-#include "pagedir.h"
-#include "webpage.h"
 #include "index.h"
 
 // parse the command line, validate parameters, initialize other modules

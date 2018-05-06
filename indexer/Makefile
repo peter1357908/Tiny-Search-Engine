@@ -14,8 +14,10 @@ CS50FILES = $(CS50PATH)bag.c $(CS50PATH)counters.c $(CS50PATH)file.c $(CS50PATH)
 COMMONPATH = ../common/
 COMMONHEADERS = $(COMMONPATH)pagedir.h $(COMMONPATH)word.h $(COMMONPATH)index.h
 COMMONFILES = $(COMMONPATH)pagedir.c $(COMMONPATH)word.c $(COMMONPATH)index.c
-PROG = indexer
-OBJS = indexer.o
+PROG1 = indexer
+PROG2 = indextest
+OBJS1 = indexer.o
+OBJS2 = indextest.o
 LIBS = -lcs50 -lcommon
 
 
@@ -23,10 +25,19 @@ CFLAGS = -Wall -pedantic -std=c11 -ggdb -I$(CS50PATH) -I$(COMMONPATH) -L$(CS50PA
 CC = gcc
 MAKE = make
 
-$(PROG): $(OBJS)
+.PHONY: test clean all
+
+all: $(PROG1) $(PROG2) 
+
+$(PROG1): $(OBJS1)
+	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
+
+$(PROG2): $(OBJS2)
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 indexer.o: $(CS50PATH)libcs50.a $(COMMONPATH)libcommon.a
+
+indextest.o: $(CS50PATH)libcs50.a $(COMMONPATH)libcommon.a
 
 $(CS50PATH)libcs50.a: $(CS50FILES) $(CS50HEADERS)
 	$(MAKE) -C $(CS50PATH)
@@ -35,10 +46,8 @@ $(COMMONPATH)libcommon.a: $(COMMONFILES) $(COMMONHEADERS)
 	$(MAKE) -C $(COMMONPATH)
 
 
-.PHONY: test clean
-
 test: $(PROG)
-	cd tests; bash ./badCommandLine.sh; echo; bash ./indexing.sh
+	cd tests; bash ./badCommandLine.sh; echo; bash ./indexing.sh; bash ./indextesttest.sh
 
 clean:
 	rm -f *~ *.o *.dSYM

@@ -7,10 +7,13 @@
  *
  * ./indextest oldIndexFilename newIndexFilename
  *
- * exit status (2 and 3 are from 'index' module):
+ * exit status (2~4 are from 'index' module):
  * 	
  * 	0 - success
  * 	1 - error during argument parsing (unexpected number of arguments, bad input, etc.)
+ * 	2 - error printing something to the index file
+ * 	3 - error converting the integers in the counter to string
+ * 	4 - error initializing data structures (hashtable or counters)
  *
  * Shengsong Gao, May 2018
  */
@@ -20,40 +23,38 @@
 #include <stdbool.h>
 #include <string.h>
 #include "hashtable.h"
-#include "pagedir.h"
-#include "webpage.h"
 #include "index.h"
 
 // parse the command line, validate parameters, initialize other modules
 int main(const int argc, char *argv[]) {
 	hashtable_t *index;				// the ultimate index data structure
 	char *dir = argv[1];			// the pageDirectory
-	FILE *indexFile;					// the index file
+	FILE *oldIndexFile;				// the OLD index file
+	FILE *newIndexFile;				// the NEW index file
 	
 	if (argc != 3) {
-		fprintf(stderr, "usage: ./indexer pageDirectory indexFilename\n");
+		fprintf(stderr, "usage: ./indextest oldIndexFilename newIndexFilename\n");
 		exit(1);
 	}
-	else if (!isCrawlerDirectory(dir)) {
-		fprintf(stderr, "pageDirectory '%s' isn't a crawler-produced directory!\n", dir);
+	else if ((oldIndexFile = fopen(argv[1], "r")) == NULL) {
+		fprintf(stderr, "unable to open oldIndexFilename '%s' for read failed!\n", argv[1]);
 		exit(1);
 	}
-	else if ((indexFile = fopen(argv[2], "w")) == NULL) {
-		fprintf(stderr, "writing to indexFile '%s' failed!\n", argv[2]);
+	else if ((newIndexFile = fopen(argv[2], "w")) == NULL) {
+		fprintf(stderr, "writing to newIndexFilename '%s' failed!\n", argv[2]);
 		exit(1);
 	}
 
-	// make a new hashtable, fill up the hashtable, and print to indexFile.
-	if ((index = hashtable_new(900)) == NULL) {
-		fprintf(stderr, "failed when initializing the index hashtable.\n");
-		exit(4);
-	}
+	// make a new hashtable, fill up the hashtable, and print to indexFile.	
+	index = indexLoader(oldIndexFile);
+	// close oldIndexFile asap
+	fclose(oldIndexFile);
 	
-	indexMaker(index, dir);
-	indexSaver(index, indexFile);
+	indexSaver(index, newIndexFile);
+	// close newIndexFile asap
+	fclose(newIndexFile);
 
-	// clean up.
-	fclose(indexFile);
+	// clean up
 	indexDeleter(index);
 	exit(0);
 }
