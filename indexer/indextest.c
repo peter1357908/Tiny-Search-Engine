@@ -28,7 +28,6 @@
 // parse the command line, validate parameters, initialize other modules
 int main(const int argc, char *argv[]) {
 	hashtable_t *index;				// the ultimate index data structure
-	char *dir = argv[1];			// the pageDirectory
 	FILE *oldIndexFile;				// the OLD index file
 	FILE *newIndexFile;				// the NEW index file
 	
@@ -37,11 +36,11 @@ int main(const int argc, char *argv[]) {
 		exit(1);
 	}
 	else if ((oldIndexFile = fopen(argv[1], "r")) == NULL) {
-		fprintf(stderr, "unable to open oldIndexFilename '%s' for read failed!\n", argv[1]);
+		fprintf(stderr, "unable to open oldIndexFilename '%s' for read!\n", argv[1]);
 		exit(1);
 	}
 	else if ((newIndexFile = fopen(argv[2], "w")) == NULL) {
-		fprintf(stderr, "writing to newIndexFilename '%s' failed!\n", argv[2]);
+		fprintf(stderr, "failed writing to newIndexFilename '%s'!\n", argv[2]);
 		exit(1);
 	}
 

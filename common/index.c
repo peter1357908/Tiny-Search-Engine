@@ -17,9 +17,13 @@
 #include "pagedir.h"
 #include "file.h"
 
-// functions intended for use inside index.c only
+// function declarations
+hashtable_t *indexMaker(char *dir);
+hashtable_t *indexLoader(FILE *file);
+void indexSaver(hashtable_t *index, FILE *indexFile);
 void indexPrinter(void *arg, const char *key, void *item);
 void counterPrinter(void *arg, const int key, int count);
+void indexDeleter(hashtable_t *index);
 void counterDeleter(void *item);
 
 // make an index based on crawler output
@@ -77,7 +81,7 @@ hashtable_t *indexLoader(FILE *file) {
 	hashtable_t *index;				// the index structure to be returned
 	int currID, currTally;		// stores the current ID and its counter
 	char *currWord;						// stores the current word
-	counters_t currCounter; 	// stores the current counter
+	counters_t *currCounter; 	// stores the current counter
 	
 	// makes a hashtable with twice the slots as there are words in the file
 	if ((index = hashtable_new(2 * lines_in_file(file))) == NULL) {
@@ -87,7 +91,7 @@ hashtable_t *indexLoader(FILE *file) {
 	
 	// read all the words, assuming valid format, per Requirements Spec.
 	// relying on fscanf to dump all whitespace, so last read will be EOF
-	while (currWord = (readwordp(file)) != NULL) {
+	while ((currWord = readwordp(file)) != NULL) {
 		// since we know each word is unique (assuming valid format)
 		// try to insert the word with a new counter
 		if ((currCounter = counters_new()) == NULL) {

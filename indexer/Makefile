@@ -46,10 +46,10 @@ $(COMMONPATH)libcommon.a: $(COMMONFILES) $(COMMONHEADERS)
 	$(MAKE) -C $(COMMONPATH)
 
 
-test: $(PROG)
-	cd tests; bash ./badCommandLine.sh; echo; bash ./indexing.sh; bash ./indextesttest.sh
+test: $(PROG1) $(PROG2)
+	cd tests; ./badCommandLine.sh; ./indexing.sh
 
 clean:
 	rm -f *~ *.o *.dSYM
-	rm -f $(PROG)
+	rm -f $(PROG1) $(PROG2)
 	rm -f ./tests/output/*

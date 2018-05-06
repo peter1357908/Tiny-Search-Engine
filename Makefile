@@ -16,6 +16,7 @@ all:
 ############## valgrind all programs ##########
 valgrind: all
 	$(MAKE) -C crawler valgrind
+	$(MAKE) -C indexer valgrind
 
 ############### TAGS for emacs users ##########
 TAGS:  Makefile */Makefile */*.c */*.h */*.md */*.sh

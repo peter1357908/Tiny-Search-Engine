@@ -5,7 +5,7 @@
 
 # object files, and the target library
 LIBPATH = ../libcs50/
-OBJS = index.o pagedir.o word.o $(LIBPATH)webpage.o $(LIBPATH)file.o $(LIBPATH)memory.o $(LIBPATH)counters.o $(LIBPATH)set.o $(LIBPATH)hashtable.o
+OBJS = index.o pagedir.o word.o $(LIBPATH)webpage.o $(LIBPATH)file.o $(LIBPATH)memory.o $(LIBPATH)counters.o $(LIBPATH)set.o $(LIBPATH)hashtable.o $(LIBPATH)jhash.o
 LIB = libcommon.a
 
 CFLAGS = -Wall -pedantic -std=c11 -ggdb $(FLAGS) -I$(LIBPATH)
@@ -17,11 +17,9 @@ $(LIB): $(OBJS)
 	ar cr $(LIB) $(OBJS)
 
 # Dependencies: object files depend on header files
-pagedir.o: pagedir.h $(LIBPATH)webpage.h $(LIBPATH)file.h
+index.o: index.h pagedir.h word.h $(LIBPATH)webpage.h $(LIBPATH)file.h $(LIBPATH)memory.h $(LIBPATH)counters.h $(LIBPATH)set.h $(LIBPATH)hashtable.h $(LIBPATH)jhash.h
+pagedir.o: pagedir.h $(LIBPATH)webpage.h $(LIBPATH)file.h $(LIBPATH)memory.h
 word.o: word.h
-$(LIBPATH)webpage.o: $(LIBPATH)webpage.h $(LIBPATH)file.h $(LIBPATH)memory.h
-index.o: index.h pagedir.h word.h $(LIBPATH)webpage.h $(LIBPATH)file.h $(LIBPATH)memory.h $(LIBPATH)counters.h $(LIBPATH)set.h $(LIBPATH)hashtable.h
-
 
 .PHONY: clean sourcelist
 

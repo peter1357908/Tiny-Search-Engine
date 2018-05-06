@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include "pagedir.h"		//isCrawlerDirectory
 #include "hashtable.h"
 #include "index.h"
 
@@ -40,7 +41,7 @@ int main(const int argc, char *argv[]) {
 		exit(1);
 	}
 	else if ((indexFile = fopen(argv[2], "w")) == NULL) {
-		fprintf(stderr, "writing to indexFile '%s' failed!\n", argv[2]);
+		fprintf(stderr, "failed writing to indexFile '%s'!\n", argv[2]);
 		exit(1);
 	}
 
