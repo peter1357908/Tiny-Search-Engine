@@ -1,32 +1,25 @@
-# TESTING.md for CS50 Lab 4 Crawler
-## Shengsong Gao, April 2018
+# TESTING.md for CS50 Lab 5 Indexer
+## Shengsong Gao, May 2018
 
-### Testing 'crawler'
+### Testing `indexer` and `indextest`
 
-Testing has never been made easier! Just do "make test" in the crawler
-directory! That command will run the two shell scripts, "badCommandLine.sh" and
-"crawling.sh", I made for, well, bad command line arguments and successful
-crawling!
+Testing has never been made easier! Just do `make test` in the indexer
+directory! That command will run the two shell scripts, `badCommandLine.sh` and
+`indexing.sh` - both scripts will test BOTH `indexer` and `indextest`.
 
-"badCommandLine.sh" tests many different invalid command line arguments on my
-crawler - it echoes out each command line before it's run, so it's easy to see
-"what went wrong."
+`badCommandLine.sh` tests many different invalid command line arguments on both
+`indexer` and `indextest` - it echoes out each command before their output by
+using bash utitlity `set -x` - it's imperfect, though, as the `&&` command
+chaining is not displayed - please refer to the script for precise commands!
+(This problem becomes obvious in indexing.sh) It constructs index based on the
+demo crawler output in the cs50 demo directory, saves the index into the output
+directory, sorts the output, and compare the output to the sorted demo output.
 
-"crawling.sh" tests 3 supposedly successful crawls. It compares the process
-printed to stdout by my crawler and the demo crawler in ~cs50/demo/crawler -
-they should be perfectly matching, and if so, my success message will be echoed
-to stdout.
+`indexing.sh` test-runs `indexer`and `indextest`. It echoes out commands like
+badCommandLine.sh above. It loads index from the demo index output in the cs50
+demo directory, saves the index into the output directory, sorts the output,
+and compare the output to the sorted demo output.
 
-I didn't compare the HTML output files because of a strange difference between
-each file my crawler produces and the demo crawler produces - upon human eye
-examination, any pair of those two files are the same, but "diff" program still
-points out that the files produced by the demo crawler has some extra random
-characters compared to corresponding files produced by my crawler - again, they
-are exactly the same otherwise, and since my files don't have those random
-characters (and are thus about each 1 byte smaller), I think my solution works
-out better.
-
-Also, if you test with myvalgrind, you'll notice that my crawler allocates
-fewer times, with fewer space total - supposedly better, because I don't observe a
-significant performance drop, if there was any.
-
+Tested with myvalgrind, and there was no memory leak whatsoever! I didn't
+include valgrind testing in the test scripts because it's rather slow - but do
+try it out if you wish!

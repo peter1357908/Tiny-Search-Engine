@@ -50,20 +50,23 @@ hashtable_t *indexMaker(char *dir) {
 				continue;
 			}
 			NormalizeWord(currWord);
-			// try to insert the word with a new counter
-			if ((currCounter = counters_new()) == NULL) {
-				free(currWord);
-				indexDeleter(index);
-				fprintf(stderr, "failed when initializing the 'counters'.\n");
-				exit(4);
-			}
-			if (!hashtable_insert(index, currWord, currCounter)) {
-				// if failed, the word exists already, free currCounter
-				counters_delete(currCounter);
-			}
 
-			// increment the count - can't use currCounter!
-			counters_add(hashtable_find(index, currWord), id);
+			// try to get a 'counters' for this word
+			if ((currCounter = hashtable_find(index, currWord)) == NULL) {
+				// if it couldn't get one, the word doesn't exist yet, so make a new 'counters'
+				if ((currCounter = counters_new()) == NULL) {
+					free(currWord);
+					indexDeleter(index);
+					fprintf(stderr, "failed when initializing the 'counters'.\n");
+					exit(4);
+				}
+				// and insert the new 'counters' into the hashtable
+				hashtable_insert(index, currWord, currCounter);
+			}
+			
+			// increment the counter for the current id.
+			counters_add(currCounter, id);
+			
 			// free the allocated space for the current string
 			free(currWord);
 		}
