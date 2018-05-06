@@ -4,6 +4,7 @@
  * exit status:
  * 	2 - error printing something to the index file
  * 	3 - error converting the integers in the counter to string
+ * 	4 - error initializing data structures (hashtable or counters)
  *
  * Shengsong Gao, May 2018
  */
@@ -19,7 +20,7 @@
 hashtable_t *indexMaker(char *dir);
 
 // load index file and return an index data structure
-hashtable_t *indexLoader(FILE *old);
+hashtable_t *indexLoader(FILE *file);
 
 // save the index data structure into the specified file
 void indexSaver(hashtable_t *index, FILE *indexFile);

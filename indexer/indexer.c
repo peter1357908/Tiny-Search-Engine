@@ -13,7 +13,7 @@
  * 	1 - error during argument parsing (unexpected number of arguments, bad input, etc.)
  * 	2 - error printing something to the index file
  * 	3 - error converting the integers in the counter to string
- * 	4 - error initializing the index hashtable
+ * 	4 - error initializing data structures (hashtable or counters)
  *
  * Shengsong Gao, May 2018
  */

@@ -22,7 +22,7 @@ void indexPrinter(void *arg, const char *key, void *item);
 void counterPrinter(void *arg, const int key, int count);
 void counterDeleter(void *item);
 
-
+// make an index based on crawler output
 hashtable_t *indexMaker(char *dir) {
 	int id = 1;								// the id of the current webpage file
 	int pos = 0;							// stores the current position into words in currPage
@@ -47,13 +47,18 @@ hashtable_t *indexMaker(char *dir) {
 			}
 			NormalizeWord(currWord);
 			// try to insert the word with a new counter
-			currCounter = counters_new();
+			if ((currCounter = counters_new()) == NULL) {
+				free(currWord);
+				indexDeleter(index);
+				fprintf(stderr, "failed when initializing the 'counters'.\n");
+				exit(4);
+			}
 			if (!hashtable_insert(index, currWord, currCounter)) {
 				// if failed, the word exists already, free currCounter
 				counters_delete(currCounter);
 			}
 
-			// increment the count
+			// increment the count - can't use currCounter!
 			counters_add(hashtable_find(index, currWord), id);
 			// free the allocated space for the current string
 			free(currWord);
@@ -67,10 +72,12 @@ hashtable_t *indexMaker(char *dir) {
 	return index;
 }
 
+// load and return an index hashtable from a given index file
 hashtable_t *indexLoader(FILE *file) {
 	hashtable_t *index;				// the index structure to be returned
 	int currID, currTally;		// stores the current ID and its counter
 	char *currWord;						// stores the current word
+	counters_t currCounter; 	// stores the current counter
 	
 	// makes a hashtable with twice the slots as there are words in the file
 	if ((index = hashtable_new(2 * lines_in_file(file))) == NULL) {
@@ -78,12 +85,27 @@ hashtable_t *indexLoader(FILE *file) {
 		exit(4);
 	}
 	
-	while (fscanf(file, "%s", currWord) != EOF) {
-		while (fscanf(file, "%d", currID) != EOF) {
+	// read all the words, assuming valid format, per Requirements Spec.
+	// relying on fscanf to dump all whitespace, so last read will be EOF
+	while (currWord = (readwordp(file)) != NULL) {
+		// since we know each word is unique (assuming valid format)
+		// try to insert the word with a new counter
+		if ((currCounter = counters_new()) == NULL) {
+			free(currWord);
+			indexDeleter(index);
+			fprintf(stderr, "failed when initializing the 'counters'.\n");
+			exit(4);
+		}
+		hashtable_insert(index, currWord, currCounter);
+		// for each word read, read as many pairs of integers as possible
+		while (fscanf(file, "%d %d", &currID, &currTally) == 2) {
+			// for each pair, set the counter accordingly
+			counters_set(currCounter, currID, currTally);
+		}
+		free(currWord);
+	}
 
-
-
-
+	return index;
 }
 
 // save the index data structure into a file
