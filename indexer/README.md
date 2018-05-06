@@ -23,7 +23,7 @@ The job of the `indexer` is to read the documents in the `pageDirectory` output 
   * pageDirectory is the pathname for an existing directory produced by the crawler, and
   * indexFilename is the pathname of a writeable file; it may or may not already exist.
 
-The `indextest` (also through `index`) did:
+#### The `indextest` (also through `index`) did:
 
 1. execute from a command line with usage syntax
   * ./indextest oldIndexFilename newIndexFilename
