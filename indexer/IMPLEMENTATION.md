@@ -72,8 +72,8 @@ The content of files in `pageDirectory` follow the format as defined in the spec
 The content of the index file follows the following format:
 1. one line per word, one word per line
 2. each line provides the word and one or more (docID, count) pairs, in the format
-  *_word docID count [docID count]…_
-    *where word is a string of lower-case letters,
-    *where docID is a positive non-zero integer,
-    *where count is a positive non-zero integer,
-    *where the word and integers are separated by spaces.
+  * _word docID count [docID count]…_
+    * where word is a string of lower-case letters,
+    * where docID is a positive non-zero integer,
+    * where count is a positive non-zero integer,
+    * where the word and integers are separated by spaces.
