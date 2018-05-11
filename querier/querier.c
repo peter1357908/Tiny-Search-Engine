@@ -258,14 +258,15 @@ int wordType(char *word) {
  * union operation. 
  * Take in the result counters; iterate through the reference counters
  * modify 'res' to be the union between 'res' and 'ref'
+ * (including score modification)
  */
 void counters_union(void *arg, const int key, int count) {
 	counters_t *res = arg; 			// the result (counters to be modified)
-	
-	// if the current key doesn't exist in the result counters, add it
-	if (counters_get(res, key) == 0) {
-		counters_set(res, key, count);
-	}
+	int resCount;
+
+	// get the count of current key in res (could be 0), and add the current count to it
+	resCount = counters_get(res, key);
+	counters_set(res, key, resCount + count);
 }
 
 /*
@@ -273,19 +274,24 @@ void counters_union(void *arg, const int key, int count) {
  * Take in the result counters plus the 'save' counters;
  * iterate through the reference counters.
  * modify 'save' to be the intersection between 'res' and 'ref'
+ * (including score modification)
  */
 void counters_saveIntersection(void *arg, const int key, int count) {
 	twoCounters *tc = arg;
+	int resCount;
 
-	// if the current key exists in result counters, too, add it to 'save'
-	if (counters_get(tc->res, key) != 0) {
+	// if the current key exists in result counters, too, add one with the lower score to 'save'
+	if ((resCount = counters_get(tc->res, key)) != 0) {
+		if (count > resCount) count = resCount;
 		counters_set(tc->save, key, count);
 	}
 }
 
 /*
  * intersection operation - initialized stuff, and get help from
- * counters_saveIntersection(); In the end, res contains only intersection
+ * counters_saveIntersection();
+ * in the end, *resP contains intersection, with score modification
+ * CANNOT MODIFY RES IN PLACE BECAUSE WE DON'T HAVE A counters_deleteKey()...
  */
 void counters_intersection(counters_t **resP, counters_t *ref) {
 	// assuming memory allocations don't fail, as of now
