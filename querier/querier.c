@@ -1,9 +1,13 @@
 /* 
  * querier.c - for CS50 lab6, and as part of CS50 TSE project
  *
+ * usage:
+ * 	./querier pageDirectory indexFilename
+ *
  * exit code:
  * 	0 - success (exited with EOF)
  * 	1 - memory allocation error (e.g. counters_new() failure)
+ * 	2 - invalid command-line argument
  *
  * Shengsong Gao, May 2018
  */
@@ -26,17 +30,60 @@ int wordType(char *word);
 void counters_union(void *arg, const int key, int count);
 void counters_saveIntersection(void *arg, const int key, int count);
 void counters_intersection(counters_t **resP, counters_t *ref);
-void printResult(counters_t *result);
+void printResult(counters_t *result, char *dir);
+void counters_put(void *arg, const int key, int count);
+void counters_numKey(void *arg, const int key, int count);
+int compare_keyCount_t(const void *a, const void *b);
 
 // special type used for intersecting two counters.
 typedef struct savePlusRef {
 	counters_t *save;
 	counters_t *res;
 } twoCounters;
+// special type used for storing key-value pairs in the sorted array
+typedef struct keyCount {
+	int key;
+	int count;
+} keyCount_t;
 
 // parse command-line arguments and maintains command-line user interface
-void main() {
-	// tokenize -> indexLoader -> queryToCounters
+int main(const int argc, char *argv[]) {
+	hashtable_t *index;				// the index, to be built with indexLoader()
+	char *dir = argv[1];			// pageDirectory
+	char *line;								// the current line fed from stdin
+	char **query;							// the query, tokenized from 'line'
+	counters_t *scoreTable;		// the score table produced by queryToCounters()
+	
+	if (argc != 3) {
+		fprintf(stderr, "usage: ./querier pageDirectory indexFilename\n");
+		exit(2);
+	}
+	
+	if (!isCrawlerDirectory(dir)) {
+		fprintf(stderr, "pageDirectory '%s' isn't a crawler-produced directory!\n", dir);
+		exit(2);
+	}
+
+	if ((indexFile = fopen(argv[2], "r")) == NULL) {
+		fprintf(stderr, "unable to open indexFile '%s' for read!\n", argv[2]);
+		exit(2);
+	}
+
+	index = indexLoader(indexFile);
+	fclose(indexFile);
+	
+	// keep reading from the file, until EOF or error (based on readlinep())
+	while((line = readlinep(stdin)) != NULL) {
+		// tokenize returns NULL on recoverable errors, so 'continue'
+		if ((query = tokenize(line)) == NULL) {
+			continue;
+		}
+		// queryToCounters returns NULL on recoverable errors, so 'continue'
+		if ((scoreTable = queryToCounters(index, query, line)) == NULL) {
+			continue;
+		}
+		printResult(scoreTable, dir);
+	}
 }
 
 /*
@@ -126,7 +173,9 @@ char **tokenize(char *str) {
 
 /*
  * produce a 'counters' based on a processed query (from tokenize())
+ * the caller is responsible for freeing the returned counters.
  * accepts the original query string as parameter just so it's easily freed
+ * frees both 'query' and 'str' upon return
  * fprintf to stderr and return NULL if:
  * 	1. syntax is invalid (consecutive operators, beginning / ending with opeartors)
  * 	2. the query matches no documents
@@ -306,4 +355,81 @@ void counters_intersection(counters_t **resP, counters_t *ref) {
 	free(tc);
 }
 
-void printResult(counters_t *result);
+/*
+ * takes in the score table produced by queryToCounters and the pageDirectory path
+ * sort the scores (with insertion sort, during iteration) and print accordingly
+ * deletes the input counter in the end
+ */
+void printResult(counters_t *result, char *dir) {
+	int numKey = 0;					// number of document matches
+	int currKey;						// integer value of the current doc id
+	char idString[12];			// string form of the current doc id
+	char *pagePath, *url;		// the path to the current file, and the url inside
+	keyCount_t *currKc;			// current key-counter pair
+	keyCount_t **sorted;		// the sorted array of keyCount_t's
+	FILE *file;							// the file of the current doc id
+
+	counters_iterate(result, &numKey, counters_numKey);
+
+	keyCount_t **iterator = (keyCount_t **)(calloc(numKey, sizeof(keyCount_t *)));
+	sorted = iterator;
+	
+	counters_iterate(result, iterator, counters_put);
+
+	qsort(sorted, numKey, sizeof(keyCount_t *), compare_keyCount_t);
+	
+	printf("Matches %d document(s) (ranked):\n", numKey);
+	for (i = 0; i < numKey; i++) {
+		currKc = sorted[i];
+
+		// get the current key in its string form and get its file path name with catPath() 
+		currKey = currKc->key;
+		sprintf(idString, "%d", currKey);
+		pagePath = catPath(dir, idString);
+
+		if ((file = fopen(pagePath, "r")) != NULL) {
+			url = readlinep(file);
+			printf("score %4d doc %4s: %s\n", currKc->count, idString, url);
+			free(url);
+		}
+		else {
+			printf("score %4d doc %4s: <no url; failed to read file>\n", currKc->count, idString);
+		}
+		
+		free(currKc);
+		free(pagePath);
+	}
+	
+	// clean up.
+	free(sorted);
+	counters_delete(result);
+}
+
+// make a keyCount_t for each key-count pair and append to the array input
+void counters_put(void *arg, const int key, int count) {
+	keyCount_t **array = arg;
+	keyCount_t *currKc = malloc(sizeof(keyCount_t));
+	currKc->key = key;
+	currKc->count = count;
+
+	array[0] = currKc;
+	// so the next time this array is used, it's pointing at the next index
+	// another approach is to make ANOTHER data structure that also holds the current index...
+	array = &sorted[1];
+}
+
+// counts the number of keys (iterations) for the score table
+void counters_numKey(void *arg, const int key, int count) {
+	int *numKey = arg;
+
+	(*numKey)++;
+}
+
+// comparison function for qsort(), to compare keyCount_t's according to count
+int compare_keyCount_t(const void *a, const void *b) {
+	const keyCount_t *kc1 = a;
+	const keyCount_t *kc2 = b;
+
+	return kc1->count - kc2->count;
+}
+
