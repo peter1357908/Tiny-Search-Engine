@@ -21,11 +21,12 @@
 #include "hashtable.h"
 #include "word.h"
 #include "pagedir.h"
+#include "index.h"
 #include "file.h"
 
 // function declarations
 char **tokenize(char *str);
-counters_t *queryToCounters(char **query);
+counters_t *queryToCounters(hashtable_t *index, char **query, char *str);
 int wordType(char *word);
 void counters_union(void *arg, const int key, int count);
 void counters_saveIntersection(void *arg, const int key, int count);
@@ -53,6 +54,7 @@ int main(const int argc, char *argv[]) {
 	char *line;								// the current line fed from stdin
 	char **query;							// the query, tokenized from 'line'
 	counters_t *scoreTable;		// the score table produced by queryToCounters()
+	FILE *indexFile;					// the index file specified by indexFilename
 	
 	if (argc != 3) {
 		fprintf(stderr, "usage: ./querier pageDirectory indexFilename\n");
@@ -100,6 +102,7 @@ int main(const int argc, char *argv[]) {
 char **tokenize(char *str) {
 	int numWords = 0;							// the number of words in the string
 	int numChars = strlen(str);		// the number of characters in the string
+	int i;												// the iterator
 	char currChar;								// the current character
 	char *currWord;								// the pointer to the current word
 	char **array;									// the array to be returned
@@ -112,7 +115,7 @@ char **tokenize(char *str) {
 	 * null-terminate each word, and return NULL upon encountering invalid chars
 	 * make use of the null-terminator from the string, thus "i <= numChars"
 	 */
-	for (int i = 0; i <= numChars; i++) {
+	for (i = 0; i <= numChars; i++) {
 		currChar = str[i];
 		if (isalpha(currChar)) {
 			afterAlpha = true;
@@ -133,7 +136,7 @@ char **tokenize(char *str) {
 	}
 	
 	// return NULL for trivial string (empty or all-whitespace)
-	if (numWords = 0) {
+	if (numWords == 0) {
 		free(str);
 		fprintf(stderr, "Error: trivial query - empty or all-whitespace.\n");
 		return NULL;
@@ -157,7 +160,7 @@ char **tokenize(char *str) {
 				currWord = &(str[i]);
 				NormalizeWord(currWord);
 				array[numWords] = currWord;
-				numWords++;'
+				numWords++;
 			}
 			afterSpace = false;
 		}
@@ -183,6 +186,7 @@ char **tokenize(char *str) {
 counters_t *queryToCounters(hashtable_t *index, char **query, char *str) {
 	char *currWord = NULL;						// the pointer to the current word and last word
 	int currType;											// the type of the current token (see wordType())
+	int i;														// the iterator
 	bool afterOperator = false;				// is the last token an operator
 	bool firstTime;										// is this the first time into an and-sequence
 	counters_t *resultCounters = NULL;// result counters, modified along parsing
@@ -199,23 +203,23 @@ counters_t *queryToCounters(hashtable_t *index, char **query, char *str) {
 	// first word cannot be an operator
 	currWord = query[0];
 	if (wordType(currWord) != 0) {
-		fprintf(stderr, "Error: '%d' cannot be first\n", currWord);
+		fprintf(stderr, "Error: '%s' cannot be first\n", currWord);
 		goto syntaxError;
 	}
 
 	// last word cannot be an operator
 	currWord = query[numWords - 1];
 	if (wordType(currWord) != 0) {
-		fprintf(stderr, "Error: '%d' cannot be last\n", currWord);
+		fprintf(stderr, "Error: '%s' cannot be last\n", currWord);
 		goto syntaxError;
 	}
 
 	// cannot have consecutive operators
-	for (int i = 1; i < numWords - 1; i++) {
+	for (i = 1; i < numWords - 1; i++) {
 		currWord = query[i];
 		if (wordType(currWord) != 0) {
 			if (afterOperator) {
-				fprintf(stderr, "Error: '%d' and '%d' cannot be adjacent\n", query[i-1], currWord);
+				fprintf(stderr, "Error: '%s' and '%s' cannot be adjacent\n", query[i-1], currWord);
 				goto syntaxError;
 			}
 			afterOperator = true;
@@ -379,7 +383,7 @@ void printResult(counters_t *result, char *dir) {
 	qsort(sorted, numKey, sizeof(keyCount_t *), compare_keyCount_t);
 	
 	printf("Matches %d document(s) (ranked):\n", numKey);
-	for (i = 0; i < numKey; i++) {
+	for (int i = 0; i < numKey; i++) {
 		currKc = sorted[i];
 
 		// get the current key in its string form and get its file path name with catPath() 
@@ -415,7 +419,7 @@ void counters_put(void *arg, const int key, int count) {
 	array[0] = currKc;
 	// so the next time this array is used, it's pointing at the next index
 	// another approach is to make ANOTHER data structure that also holds the current index...
-	array = &sorted[1];
+	array = &(array[1]);
 }
 
 // counts the number of keys (iterations) for the score table
