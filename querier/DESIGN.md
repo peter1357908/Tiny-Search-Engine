@@ -1,37 +1,19 @@
-# DESIGN.md for CS50 Lab 5 Indexer
+# DESIGN.md for CS50 Lab 6 Querier
 ## Shengsong Gao, May 2018
 
-### Purpose of `indexer`
-The job of the `indexer` is to read the documents in the `pageDirectory` output by the `crawler`, build an inverted index mapping from words to documents, and write that index to a file. (Later, the `querier` will read the index and use it to answer queries.)
-
-### `indexer` design
-#### Data structure: Inverted index
-We need a data structure to represent the inverted index. It’s called an inverted index because it maps from words to documents, the opposite of a document (itself a sequence of words).
-A hashtable of countersets is perfect to map from a word to a list of (docID, count) pairs.
-
-#### `indexer` data flow
-
-We get to use three out of our four data structures: hashtable, set, and counters!
-
-When processing a given document (identified by docID), consider each word; look up that word in the hashtable and retrieve a pointer to a counters_t* item; then use counters_add() on that item, using the docID as a key.
+#### `querier` data flow
+From main parsing, to tokenizing the line input, to making the counters scoretable, to finally printing out the result!
 
 #### High-level pseudocode
-Very high-level description of the `indexer` and `indextest`.
+Very high-level description of the `querier` and `querytest`.
 
-`indexer`:
+`querier`:
 
-1. Process and validate command-line parameters
-2. Initialize data structure index
-3. index_build(directory, index)
-4. index_save(file, index);
-5. clean up data structures
-
-`indextest`:
-
-1. Process and validate command-line parameters
-2. Initialize data structure index
-3. index_load(file1, index)
-4. index_save(file2, index)
-5. clean up data structures
+1. parses command-line arguments and maintains command-line user interface
+2. keep reading from stdin until EOF or error
+3. turn the line read from stdin into an array of tokens - each is a normalize word and extra whitespace are redacted
+4. make a `counter` data structure based on the tokenized query, namely the "scoretable"
+5. sort the scoretable
+6. print it out accordingly!
 
 For detailed pseudocode, please refer to [IMPLEMENTATION](IMPLEMENTATION.md) file in the same directory. 
