@@ -1,0 +1,5 @@
+# exclude everything in the output folder
+output/*
+
+# well, except the .blank file, so it can be committed to git
+!output/.blank

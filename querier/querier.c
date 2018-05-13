@@ -25,8 +25,8 @@
 #include "file.h"
 
 // function declarations
-char **tokenize(char *str);
-counters_t *queryToCounters(hashtable_t *index, char **query, char *str);
+char **tokenize(char *str, int *numWordsP);
+counters_t *queryToCounters(hashtable_t *index, char **query, int numWords, char *str);
 int wordType(char *word);
 void counters_union(void *arg, const int key, int count);
 void counters_saveIntersection(void *arg, const int key, int count);
@@ -37,15 +37,24 @@ void counters_numKey(void *arg, const int key, int count);
 int compare_keyCount_t(const void *a, const void *b);
 
 // special type used for intersecting two counters.
-typedef struct savePlusRef {
+// (too bad the iteration function only accepts one argument)
+typedef struct saveRes {
 	counters_t *save;
 	counters_t *res;
-} twoCounters;
+} saveRes_t;
 // special type used for storing key-value pairs in the sorted array
+// (too bad we can't access countersnode_t)
 typedef struct keyCount {
 	int key;
 	int count;
 } keyCount_t;
+// special type used for putting all counters into an array
+// (too bad the iteration function only accepts one argument)
+typedef struct arrayIndex {
+	keyCount_t **array;
+	int index;
+} arrayIndex_t;
+
 
 // parse command-line arguments and maintains command-line user interface
 int main(const int argc, char *argv[]) {
@@ -53,6 +62,7 @@ int main(const int argc, char *argv[]) {
 	char *dir = argv[1];			// pageDirectory
 	char *line;								// the current line fed from stdin
 	char **query;							// the query, tokenized from 'line'
+	int numWords;							// stores the number of words in the current query
 	counters_t *scoreTable;		// the score table produced by queryToCounters()
 	FILE *indexFile;					// the index file specified by indexFilename
 	
@@ -75,13 +85,16 @@ int main(const int argc, char *argv[]) {
 	fclose(indexFile);
 	
 	// keep reading from the file, until EOF or error (based on readlinep())
-	while((line = readlinep(stdin)) != NULL) {
+	while(1) {
+		printf("KEY WORDs:> ");
+		if ((line = readlinep(stdin)) == NULL) break;
+
 		// tokenize returns NULL on recoverable errors, so 'continue'
-		if ((query = tokenize(line)) == NULL) {
+		if ((query = tokenize(line, &numWords)) == NULL) {
 			continue;
 		}
 		// queryToCounters returns NULL on recoverable errors, so 'continue'
-		if ((scoreTable = queryToCounters(index, query, line)) == NULL) {
+		if ((scoreTable = queryToCounters(index, query, numWords, line)) == NULL) {
 			continue;
 		}
 		printResult(scoreTable, dir);
@@ -90,6 +103,7 @@ int main(const int argc, char *argv[]) {
 
 /*
  * build an array of pointers to the words in the string.
+ * also stores the number of words in an int pointer passed to this function
  * the caller is responsible for freeing the returned array
  * assume the input string is not EOF and mutable (to null-terminate words in place)
  * side effect for the input string:
@@ -99,8 +113,8 @@ int main(const int argc, char *argv[]) {
  * 	1. any char in the string is neither an alpha or a whitespace
  * 	2. no alphabetical char is in the str
  */
-char **tokenize(char *str) {
-	int numWords = 0;							// the number of words in the string
+char **tokenize(char *str, int *numWordsP) {
+	int numWords = 0;							// the number of words in the query
 	int numChars = strlen(str);		// the number of characters in the string
 	int i;												// the iterator
 	char currChar;								// the current character
@@ -108,14 +122,13 @@ char **tokenize(char *str) {
 	char **array;									// the array to be returned
 	bool afterAlpha = false;  		// is the last char examined alphabetical?
 	bool afterSpace = true; 			// is the last char examined a whitespace?
-
+	
 	/* 
 	 * get the number of words in the string (to calloc() the array)
 	 * another approach is to reallocate space for array as necessary, like in readlinep()
 	 * null-terminate each word, and return NULL upon encountering invalid chars
-	 * make use of the null-terminator from the string, thus "i <= numChars"
 	 */
-	for (i = 0; i <= numChars; i++) {
+	for (i = 0; i < numChars; i++) {
 		currChar = str[i];
 		if (isalpha(currChar)) {
 			afterAlpha = true;
@@ -134,6 +147,8 @@ char **tokenize(char *str) {
 			return NULL;
 		}
 	}
+	// see if the last word is terminated by null (it's not a whitespace char)
+	if (afterAlpha) numWords++;
 	
 	// return NULL for trivial string (empty or all-whitespace)
 	if (numWords == 0) {
@@ -141,7 +156,7 @@ char **tokenize(char *str) {
 		fprintf(stderr, "Error: trivial query - empty or all-whitespace.\n");
 		return NULL;
 	}
-	
+
 	// allocate space for the array and return NULL upon calloc failure
 	if ((array = (char **)calloc(numWords, sizeof(char *))) == NULL) {
 		free(str);
@@ -152,7 +167,8 @@ char **tokenize(char *str) {
 	// reuse numWords as a counter for how many words are already stored in the array
 	numWords = 0;
 
-	// normalize each word and add its pointer to the array
+	printf("Query: ");
+	// normalize each word and add its pointer to the array, and print it out
 	for (i = 0; i < numChars; i++) {
 		if (isalpha(str[i])) {
 			// if an alpha is preceeded by a whitespace, that alpha is the start of a word
@@ -161,6 +177,7 @@ char **tokenize(char *str) {
 				NormalizeWord(currWord);
 				array[numWords] = currWord;
 				numWords++;
+				printf(" %s", currWord);
 			}
 			afterSpace = false;
 		}
@@ -169,7 +186,10 @@ char **tokenize(char *str) {
 			afterSpace = true;
 		}
 	}
+	putchar('\n');
 	
+	// update the value of higher-level numWords and return the array
+	*numWordsP = numWords;
 	return array;
 }
 
@@ -183,7 +203,7 @@ char **tokenize(char *str) {
  * 	1. syntax is invalid (consecutive operators, beginning / ending with opeartors)
  * 	2. the query matches no documents
  */
-counters_t *queryToCounters(hashtable_t *index, char **query, char *str) {
+counters_t *queryToCounters(hashtable_t *index, char **query, int numWords, char *str) {
 	char *currWord = NULL;						// the pointer to the current word and last word
 	int currType;											// the type of the current token (see wordType())
 	int i;														// the iterator
@@ -192,12 +212,7 @@ counters_t *queryToCounters(hashtable_t *index, char **query, char *str) {
 	counters_t *resultCounters = NULL;// result counters, modified along parsing
 	counters_t *andCounters = NULL; 	// temporary counters for the current and-sequence
 	counters_t *currCounters = NULL;	// counters in the index for the current word
-
 	
-	// get the number of words in the query
-	// another approach is sharing numWords with tokenize();
-	int numWords = sizeof(query) / sizeof(char *);
-
 	// validate the input before actually querying
 	
 	// first word cannot be an operator
@@ -250,7 +265,10 @@ counters_t *queryToCounters(hashtable_t *index, char **query, char *str) {
 			if ((currType = wordType(currWord)) == 2) break;
 			// continue if and-sequence is NULL (impossible to have intersection)
 			// continue also when encountering "and" operators (meaningless token)
-			if (currType == 1 || andCounters == NULL) continue;
+			if (currType == 1 || andCounters == NULL) {
+				i++;
+				continue;
+			}
 			if ((currCounters = hashtable_find(index, currWord)) != NULL) {
 				// if it's the first time into an and-sequence
 				// copy the content of currCounters into andCounters 
@@ -273,19 +291,24 @@ counters_t *queryToCounters(hashtable_t *index, char **query, char *str) {
 		// continue if and-sequence is NULL (no need to union with empty set)
 		if (andCounters == NULL) continue;
 		// else, do a union between the non-empty and-sequence and the result
-		// if it's the first and-sequence, just assign the pointer to resultCounters
+		// if it's the first and-sequence, just assign its pointer to resultCounters
 		if (resultCounters == NULL) {
 			resultCounters = andCounters;
-			// continue without deleting the andCounters, which became resultCounters
+			// continue without deleting the andCounters, because it's now resultCounters
 			continue;
 		}
-		counters_iterate(currCounters, andCounters, counters_union);
+		counters_iterate(andCounters, resultCounters, counters_union);
 		counters_delete(andCounters);
 	}
 
 	// success
 	free(str);
 	free(query);
+	// if the resultCounters was never initialized, no word matched anything.
+	if (resultCounters == NULL) {
+		printf("No documents match.\n");
+		return NULL;
+	}
 	return resultCounters;
 
 syntaxError:
@@ -330,13 +353,13 @@ void counters_union(void *arg, const int key, int count) {
  * (including score modification)
  */
 void counters_saveIntersection(void *arg, const int key, int count) {
-	twoCounters *tc = arg;
+	saveRes_t *sr = arg;
 	int resCount;
 
 	// if the current key exists in result counters, too, add one with the lower score to 'save'
-	if ((resCount = counters_get(tc->res, key)) != 0) {
+	if ((resCount = counters_get(sr->res, key)) != 0) {
 		if (count > resCount) count = resCount;
-		counters_set(tc->save, key, count);
+		counters_set(sr->save, key, count);
 	}
 }
 
@@ -348,44 +371,56 @@ void counters_saveIntersection(void *arg, const int key, int count) {
  */
 void counters_intersection(counters_t **resP, counters_t *ref) {
 	// assuming memory allocations don't fail, as of now
-	twoCounters *tc = malloc(sizeof(twoCounters));
-	tc->save = counters_new();
-	tc->res = *resP;
+	saveRes_t *sr = malloc(sizeof(saveRes_t));
+	sr->save = counters_new();
+	sr->res = *resP;
 	
-	counters_iterate(ref, tc, counters_saveIntersection);
+	counters_iterate(ref, sr, counters_saveIntersection);
 	// replace the older result with the result of intersection
 	counters_delete(*resP);
-	*resP = tc->save;
-	free(tc);
+	*resP = sr->save;
+	free(sr);
 }
 
 /*
  * takes in the score table produced by queryToCounters and the pageDirectory path
  * sort the scores (with insertion sort, during iteration) and print accordingly
- * deletes the input counter in the end
+ * deletes the input counter (the score table from queryToCounters) in the end
  */
 void printResult(counters_t *result, char *dir) {
-	int numKey = 0;					// number of document matches
-	int currKey;						// integer value of the current doc id
-	char idString[12];			// string form of the current doc id
-	char *pagePath, *url;		// the path to the current file, and the url inside
-	keyCount_t *currKc;			// current key-counter pair
-	keyCount_t **sorted;		// the sorted array of keyCount_t's
-	FILE *file;							// the file of the current doc id
-
+	int numKey = 0;										// number of document matches
+	int currKey;											// integer value of the current doc id
+	char idString[12];								// string form of the current doc id
+	char *pagePath, *url;							// the path to the current file, and the url inside
+	keyCount_t *currKc;								// current key-counter pair
+	keyCount_t **sorted;							// the sorted array of keyCount_t's
+	FILE *file;												// the file of the current doc id
+	
+	// first find out how many keys are in the score table
 	counters_iterate(result, &numKey, counters_numKey);
 
-	keyCount_t **iterator = (keyCount_t **)(calloc(numKey, sizeof(keyCount_t *)));
-	sorted = iterator;
+	// if counters contains nothing, then no document was matched
+	if (numKey == 0) {
+		printf("No documents match.\n");
+		return;
+	}
 	
-	counters_iterate(result, iterator, counters_put);
-
+	// then make an array of corresponding size, and copy its pointer to 'sorted'
+	sorted = (keyCount_t **)(calloc(numKey, sizeof(keyCount_t *)));
+	
+	// put every key-count pair into the array
+	arrayIndex_t *ai = malloc(sizeof(arrayIndex_t));
+	ai->array = sorted;
+	ai->index = 0;
+	counters_iterate(result, ai, counters_put);
+	free(ai);
+	
+	// sort the array of (keyCount_t *)
 	qsort(sorted, numKey, sizeof(keyCount_t *), compare_keyCount_t);
-	
+
 	printf("Matches %d document(s) (ranked):\n", numKey);
 	for (int i = 0; i < numKey; i++) {
 		currKc = sorted[i];
-
 		// get the current key in its string form and get its file path name with catPath() 
 		currKey = currKc->key;
 		sprintf(idString, "%d", currKey);
@@ -400,6 +435,7 @@ void printResult(counters_t *result, char *dir) {
 			printf("score %4d doc %4s: <no url; failed to read file>\n", currKc->count, idString);
 		}
 		
+		fclose(file);
 		free(currKc);
 		free(pagePath);
 	}
@@ -411,15 +447,15 @@ void printResult(counters_t *result, char *dir) {
 
 // make a keyCount_t for each key-count pair and append to the array input
 void counters_put(void *arg, const int key, int count) {
-	keyCount_t **array = arg;
+	arrayIndex_t *ai = arg;
+	keyCount_t **array = ai->array;
+	int index = ai->index;
 	keyCount_t *currKc = malloc(sizeof(keyCount_t));
 	currKc->key = key;
 	currKc->count = count;
 
-	array[0] = currKc;
-	// so the next time this array is used, it's pointing at the next index
-	// another approach is to make ANOTHER data structure that also holds the current index...
-	array = &(array[1]);
+	array[index] = currKc;
+	(ai->index)++;
 }
 
 // counts the number of keys (iterations) for the score table
@@ -430,10 +466,8 @@ void counters_numKey(void *arg, const int key, int count) {
 }
 
 // comparison function for qsort(), to compare keyCount_t's according to count
+// return b.count - a.count, because it's ranked from highest to lowest
 int compare_keyCount_t(const void *a, const void *b) {
-	const keyCount_t *kc1 = a;
-	const keyCount_t *kc2 = b;
-
-	return kc1->count - kc2->count;
+	return ((*(const keyCount_t **)b)->count - (*(const keyCount_t **)a)->count);
 }
 
