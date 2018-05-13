@@ -109,7 +109,7 @@ int main(const int argc, char *argv[]) {
  * side effect for the input string:
  * 	1. the first whitespace after each word is replaced with '\0'
  * 	2. each word is normalized 
- * fprintf to stderr and return NULL if :
+ * printf and return NULL if :
  * 	1. any char in the string is neither an alpha or a whitespace
  * 	2. no alphabetical char is in the str
  */
@@ -143,7 +143,7 @@ char **tokenize(char *str, int *numWordsP) {
 		}
 		else {
 			free(str);
-			fprintf(stderr, "Error: bad character '%c' in query.\n", currChar);
+			printf("Error: bad character '%c' in query.\n", currChar);
 			return NULL;
 		}
 	}
@@ -153,7 +153,7 @@ char **tokenize(char *str, int *numWordsP) {
 	// return NULL for trivial string (empty or all-whitespace)
 	if (numWords == 0) {
 		free(str);
-		fprintf(stderr, "Error: trivial query - empty or all-whitespace.\n");
+		printf("Error: trivial query - empty or all-whitespace.\n");
 		return NULL;
 	}
 
@@ -199,7 +199,7 @@ char **tokenize(char *str, int *numWordsP) {
  * the caller is responsible for freeing the returned counters.
  * accepts the original query string as parameter just so it's easily freed
  * frees both 'query' and 'str' upon return
- * fprintf to stderr and return NULL if:
+ * printf and return NULL if:
  * 	1. syntax is invalid (consecutive operators, beginning / ending with opeartors)
  * 	2. the query matches no documents
  */
@@ -218,14 +218,14 @@ counters_t *queryToCounters(hashtable_t *index, char **query, int numWords, char
 	// first word cannot be an operator
 	currWord = query[0];
 	if (wordType(currWord) != 0) {
-		fprintf(stderr, "Error: '%s' cannot be first\n", currWord);
+		printf("Error: '%s' cannot be first\n", currWord);
 		goto syntaxError;
 	}
 
 	// last word cannot be an operator
 	currWord = query[numWords - 1];
 	if (wordType(currWord) != 0) {
-		fprintf(stderr, "Error: '%s' cannot be last\n", currWord);
+		printf("Error: '%s' cannot be last\n", currWord);
 		goto syntaxError;
 	}
 
@@ -234,7 +234,7 @@ counters_t *queryToCounters(hashtable_t *index, char **query, int numWords, char
 		currWord = query[i];
 		if (wordType(currWord) != 0) {
 			if (afterOperator) {
-				fprintf(stderr, "Error: '%s' and '%s' cannot be adjacent\n", query[i-1], currWord);
+				printf("Error: '%s' and '%s' cannot be adjacent\n", query[i-1], currWord);
 				goto syntaxError;
 			}
 			afterOperator = true;
