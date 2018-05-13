@@ -24,6 +24,11 @@ $(PROG): $(OBJS)
 
 querier.o: $(CS50PATH)libcs50.a $(COMMONPATH)libcommon.a
 
+$(CS50PATH)libcs50.a: 
+	$(MAKE) -C $(CS50PATH)
+
+$(COMMONPATH)libcommon.a:
+	$(MAKE) -C $(COMMONPATH)
 
 test: $(PROG)
 	cd tests; ./badCommandLine.sh; ./querying.sh

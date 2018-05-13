@@ -99,6 +99,8 @@ int main(const int argc, char *argv[]) {
 		}
 		printResult(scoreTable, dir);
 	}
+
+	indexDeleter(index);
 }
 
 /*
@@ -401,6 +403,7 @@ void printResult(counters_t *result, char *dir) {
 
 	// if counters contains nothing, then no document was matched
 	if (numKey == 0) {
+		counters_delete(result);
 		printf("No documents match.\n");
 		return;
 	}
