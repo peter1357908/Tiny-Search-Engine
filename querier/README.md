@@ -1,37 +1,32 @@
-# README.md for CS50 Lab 5 Indexer
+# README.md for CS50 Lab 6 Querier
 ## Shengsong Gao, May 2018
 
-### indexer requirements spec
+### `querier` requirements spec
 
-The job of the `indexer` is to read the documents in the `pageDirectory` output by the `crawler`, build an inverted index mapping from words to documents, and write that index to a file. (Later, the `querier` will read the index and use it to answer queries.)
+The TSE Querier is a standalone program that reads the index file produced by the TSE Indexer, and page files produced by the TSE Querier, and answers search queries submitted via stdin.
 
-#### The `indexer` (through `index`) did:
+#### The `querier` did:
 
 1. execute from a command line with usage syntax
-  * `./indexer pageDirectory indexFilename`
+  * `./querier pageDirectory indexFilename`
   * where `pageDirectory` is the pathname of a directory produced by the Crawler, and
-  * where `indexFilename` is the pathname of a file into which the index should be written; the indexer creates the file (if needed) and overwrites the file (if it already exists).
-2. read documents from the `pageDirectory`, each of which has a unique document ID, wherein
-  * the document `id` starts at 1 and increments by 1 for each new page,
-  * and the filename is of form `pageDirectory/id`,
-  * and the first line of the file is the URL,
-  * and the second line of the file is the depth,
-  * and the rest of the file is the page content (the HTML, unchanged).
-3. build an inverted-index data structure mapping from _words_ to _(documentID, count)_ pairs, wherein each _count_ represents the number of occurrences of the given word in the given document. Ignore words with fewer than three characters, and “normalize” the word before indexing. (Here, “normalize” means to convert all letters to lower-case.)
-4. create a file `indexFilename` and write the index to that file, in the format described below.
-5. validate its command-line arguments:
-  * pageDirectory is the pathname for an existing directory produced by the crawler, and
-  * indexFilename is the pathname of a writeable file; it may or may not already exist.
+  * where `indexFilename` is the pathname of a file produced by the Indexer.
+2. load the index from `indexFilename` into an internal data structure.
 
-#### The `indextest` (also through `index`) did:
+3. read search queries from stdin, one per line, until EOF.
+  1. clean and parse each query according to the syntax described below.
+  2. if the query syntax is somehow invalid, print an error message, do not perform the query, and prompt for the next query.
+  3. print the ‘clean’ query for user to see.
+  4. use the index to identify the set of documents that satisfy the query, as described below.
+  5. if the query is empty (no words), print nothing.
+  6. if no documents satisfy the query, print No documents match.
+  7. otherwise, rank the resulting set of documents according to its score, as described below, and print the set of documents in decreasing rank order; for each, list the score, document ID and URL. (Obtain the URL by reading the first line of the relevant document file from the pageDirectory.)
+  8. Exit with zero status when EOF is reached on stdin.
 
-1. execute from a command line with usage syntax
-  * ./indextest oldIndexFilename newIndexFilename
-  * where oldIndexFilename is the name of a file produced by the indexer, and
-  * where newIndexFilename is the name of a file into which the index should be written.
-2. load the index from the `oldIndexFilename` into an inverted-index data structure.
-3. create a file `newIndexFilename` and write the index to that file, in the format described below.
+#### The `querier` validates its command-line arguments:
 
+  * pageDirectory is the pathname for an existing directory produced by the Crawler, and
+  * indexFilename is the pathname of a readable file.
 
 ### Implementation and Assumptions
 
@@ -39,10 +34,8 @@ please refer to the [IMPLEMENTATION](IMPLEMENTATION.md) in the same directory.
 
 ### Compilation
 
-To compile both `indexer` and `indextest`, simply `make`.
+To compile `querier`, simply `make`.
 
-To compile each, just `make indexer` or `make indextest`.
-
-To test both `indexer` and `indextest`, simply `make test`.
+To test `querier`, simply `make test`.
 
 See [TESTING](TESTING.md) for details of testing!
